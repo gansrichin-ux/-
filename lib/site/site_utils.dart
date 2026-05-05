@@ -1,0 +1,255 @@
+part of '../main_site.dart';
+
+class CargoStatsView {
+  final List<CargoModel> cargos;
+
+  CargoStatsView(this.cargos);
+
+  int get total => cargos.length;
+  int get newCount =>
+      cargos.where((cargo) => cargo.status == cargoStatusNew).length;
+  int get inWork =>
+      cargos.where((cargo) => cargo.status == cargoStatusInWork).length;
+  int get inTransit =>
+      cargos.where((cargo) => cargo.status == cargoStatusInTransit).length;
+  int get completed => cargos
+      .where((cargo) =>
+          cargo.status == cargoStatusDelivered ||
+          cargo.status == cargoStatusDeliveredLegacy)
+      .length;
+  int get closed => cargos
+      .where((cargo) =>
+          cargo.status == cargoStatusClosed ||
+          cargo.status == cargoStatusClosedLegacy)
+      .length;
+  int get cancelled => cargos
+      .where((cargo) =>
+          cargo.status == cargoStatusCancelled ||
+          cargo.status == cargoStatusCancelledLegacy)
+      .length;
+  int get active => newCount + inWork + inTransit;
+  int get unassigned => cargos
+      .where(
+          (cargo) => cargo.status == cargoStatusNew && cargo.driverId == null)
+      .length;
+  double get revenue =>
+      cargos.fold<double>(0, (sum, cargo) => sum + (cargo.price ?? 0));
+  double get distance =>
+      cargos.fold<double>(0, (sum, cargo) => sum + (cargo.distanceKm ?? 0));
+}
+
+const cargoStatusNew = 'Новый';
+const cargoStatusInWork = 'В работе';
+const cargoStatusInTransit = 'В пути';
+const cargoStatusDelivered = 'Доставлено';
+const cargoStatusClosed = 'Закрыто';
+const cargoStatusCancelled = 'Отменено';
+const cargoStatusDeliveredLegacy = 'Доставлен';
+const cargoStatusClosedLegacy = 'Закрыт';
+const cargoStatusCancelledLegacy = 'Отменен';
+
+const cargoStatuses = [
+  cargoStatusNew,
+  cargoStatusInWork,
+  cargoStatusInTransit,
+  cargoStatusDelivered,
+  cargoStatusClosed,
+  cargoStatusCancelled,
+];
+
+class CargoFilters {
+  final String from;
+  final String to;
+  final String bodyType;
+  final double? minWeight;
+  final double? maxWeight;
+  final double? minPrice;
+  final double? maxPrice;
+  final bool onlyWithoutDriver;
+
+  const CargoFilters({
+    this.from = '',
+    this.to = '',
+    this.bodyType = '',
+    this.minWeight,
+    this.maxWeight,
+    this.minPrice,
+    this.maxPrice,
+    this.onlyWithoutDriver = false,
+  });
+
+  static const empty = CargoFilters();
+
+  bool get isActive =>
+      from.trim().isNotEmpty ||
+      to.trim().isNotEmpty ||
+      bodyType.trim().isNotEmpty ||
+      minWeight != null ||
+      maxWeight != null ||
+      minPrice != null ||
+      maxPrice != null ||
+      onlyWithoutDriver;
+
+  CargoFilters copyWith({
+    String? from,
+    String? to,
+    String? bodyType,
+    double? minWeight,
+    double? maxWeight,
+    double? minPrice,
+    double? maxPrice,
+    bool? onlyWithoutDriver,
+    bool clearMinWeight = false,
+    bool clearMaxWeight = false,
+    bool clearMinPrice = false,
+    bool clearMaxPrice = false,
+  }) {
+    return CargoFilters(
+      from: from ?? this.from,
+      to: to ?? this.to,
+      bodyType: bodyType ?? this.bodyType,
+      minWeight: clearMinWeight ? null : minWeight ?? this.minWeight,
+      maxWeight: clearMaxWeight ? null : maxWeight ?? this.maxWeight,
+      minPrice: clearMinPrice ? null : minPrice ?? this.minPrice,
+      maxPrice: clearMaxPrice ? null : maxPrice ?? this.maxPrice,
+      onlyWithoutDriver: onlyWithoutDriver ?? this.onlyWithoutDriver,
+    );
+  }
+}
+
+Color _statusColor(String status) {
+  switch (status) {
+    case cargoStatusNew:
+      return const Color(0xFF2563EB);
+    case cargoStatusInWork:
+      return const Color(0xFF7C3AED);
+    case cargoStatusInTransit:
+      return const Color(0xFF0891B2);
+    case cargoStatusDelivered:
+    case cargoStatusDeliveredLegacy:
+      return const Color(0xFF16A34A);
+    case cargoStatusClosed:
+    case cargoStatusClosedLegacy:
+      return const Color(0xFF0F766E);
+    case cargoStatusCancelled:
+    case cargoStatusCancelledLegacy:
+      return const Color(0xFFDC2626);
+    default:
+      return const Color(0xFF64748B);
+  }
+}
+
+double? _parseDouble(String value) {
+  final normalized = value.trim().replaceAll(',', '.');
+  if (normalized.isEmpty) return null;
+  return double.tryParse(normalized);
+}
+
+String _formatMoney(double value) {
+  final formatted = NumberFormat.decimalPattern('ru').format(value.round());
+  return '$formatted ₸';
+}
+
+String _userInitial(String value) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) return 'L';
+  return trimmed.substring(0, 1).toUpperCase();
+}
+
+String translateAuthError(Object error) {
+  final errStr = error.toString();
+  if (errStr.contains('email-already-in-use')) {
+    return 'Этот email уже зарегистрирован. Пожалуйста, войдите или используйте другой email.';
+  } else if (errStr.contains('invalid-email')) {
+    return 'Неверный формат email адреса.';
+  } else if (errStr.contains('weak-password')) {
+    return 'Пароль слишком слабый. Используйте минимум 6 символов.';
+  } else if (errStr.contains('user-not-found')) {
+    return 'Пользователь с таким email не найден.';
+  } else if (errStr.contains('wrong-password') || errStr.contains('invalid-credential')) {
+    return 'Неверный email или пароль.';
+  } else if (errStr.contains('network-request-failed')) {
+    return 'Ошибка сети. Проверьте подключение к интернету.';
+  } else if (errStr.contains('too-many-requests')) {
+    return 'Слишком много попыток входа. Пожалуйста, подождите немного.';
+  }
+  return errStr;
+}
+
+void showSiteError(BuildContext context, String message) {
+  final overlayState = Overlay.of(context);
+  late OverlayEntry entry;
+
+  entry = OverlayEntry(
+    builder: (context) {
+      final colors = Theme.of(context).colorScheme;
+      return Positioned(
+        top: 24,
+        left: 0,
+        right: 0,
+        child: Material(
+          color: Colors.transparent,
+          child: Center(
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.0, end: 1.0),
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeOutCubic,
+              builder: (context, value, child) {
+                return Transform.translate(
+                  offset: Offset(0, -30 * (1 - value)),
+                  child: Opacity(
+                    opacity: value,
+                    child: child,
+                  ),
+                );
+              },
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 400),
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: colors.errorContainer.withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: colors.error.withOpacity(0.3), width: 1.5),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.error_outline_rounded, color: colors.onErrorContainer),
+                        const SizedBox(width: 12),
+                        Flexible(
+                          child: Text(
+                            message,
+                            style: TextStyle(
+                              color: colors.onErrorContainer,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        InkWell(
+                          onTap: () {
+                            if (entry.mounted) entry.remove();
+                          },
+                          child: Icon(Icons.close_rounded, size: 20, color: colors.onErrorContainer),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+  );
+
+  overlayState.insert(entry);
+  Future.delayed(const Duration(seconds: 4), () {
+    if (entry.mounted) entry.remove();
+  });
+}

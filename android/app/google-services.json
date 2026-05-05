@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "222919916416",
+    "project_id": "logist-app-55ac9",
+    "storage_bucket": "logist-app-55ac9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:222919916416:android:eddeeb05a4da2c22635f65",
+        "android_client_info": {
+          "package_name": "com.example.logist_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAo_xvR6wBF3pbVPDcLIOClgnjFqUcH7VU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

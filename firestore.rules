@@ -1,0 +1,220 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/adminAccounts/$(request.auth.uid))
+        && get(/databases/$(database)/documents/adminAccounts/$(request.auth.uid)).data.active == true;
+    }
+
+    function ownProfileUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'username',
+        'usernameLower',
+        'name',
+        'aboutMe',
+        'avatarUrl',
+        'car',
+        'fcmToken',
+        'updatedAt',
+        'emailCodeVerified'
+      ]);
+    }
+
+    function ratingAggregateUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'ratingCount',
+        'ratingSum'
+      ]);
+    }
+
+    function isCargoParticipant() {
+      return signedIn()
+        && (resource.data.ownerId == request.auth.uid
+          || resource.data.driverId == request.auth.uid);
+    }
+
+    match /adminAccounts/{uid} {
+      allow read: if isSelf(uid) || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() || isAdmin();
+      allow create: if request.resource.data.uid == uid
+        && request.resource.data.role in ['driver', 'logistician', 'forwarder', 'cargo_owner', 'driver_forwarder', 'driver_cargo_owner'];
+      allow update: if isAdmin()
+        || (isSelf(uid) && ownProfileUpdate())
+        || (signedIn() && ratingAggregateUpdate());
+      allow delete: if isAdmin();
+
+      match /favoriteCargos/{cargoId} {
+        allow read, write: if isSelf(uid) || isAdmin();
+      }
+
+      match /ratings/{raterId} {
+        allow read: if signedIn();
+        allow create, update: if isSelf(raterId)
+          && request.resource.data.raterId == request.auth.uid
+          && request.resource.data.score >= 1
+          && request.resource.data.score <= 5;
+        allow delete: if isAdmin();
+      }
+
+      match /notifications/{notificationId} {
+        allow read, update, delete: if isSelf(uid) || isAdmin();
+        allow create: if signedIn();
+      }
+    }
+
+    match /drivers/{uid} {
+      allow read: if signedIn();
+      allow create: if request.resource.data.role == 'driver';
+      allow update: if isAdmin()
+        || (isSelf(uid) && ownProfileUpdate())
+        || (signedIn() && ratingAggregateUpdate());
+      allow delete: if isAdmin();
+    }
+
+    match /logisticians/{uid} {
+      allow read: if signedIn();
+      allow create: if request.resource.data.role == 'logistician';
+      allow update: if isAdmin()
+        || (isSelf(uid) && ownProfileUpdate())
+        || (signedIn() && ratingAggregateUpdate());
+      allow delete: if isAdmin();
+    }
+
+    match /usernames/{username} {
+      allow read: if true;
+      allow create: if request.resource.data.uid != null;
+      allow update, delete: if isAdmin();
+    }
+
+    match /cargos/{cargoId} {
+      allow read: if true;
+      allow create: if signedIn()
+        && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isAdmin() || isCargoParticipant();
+      allow delete: if isAdmin()
+        || (signedIn() && resource.data.ownerId == request.auth.uid);
+
+      match /messages/{messageId} {
+        allow read, create: if signedIn();
+        allow update, delete: if isAdmin()
+          || (signedIn() && resource.data.senderId == request.auth.uid);
+      }
+    }
+
+    match /cargoApplications/{applicationId} {
+      allow read: if isAdmin()
+        || (signedIn()
+          && (resource.data.ownerId == request.auth.uid
+            || resource.data.applicantId == request.auth.uid));
+      allow create: if signedIn()
+        && request.resource.data.applicantId == request.auth.uid
+        && request.resource.data.ownerId != request.auth.uid;
+      allow update: if isAdmin()
+        || (signedIn() && resource.data.ownerId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    match /siteNotifications/{notificationId} {
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create, update: if signedIn();
+      allow delete: if isAdmin()
+        || (signedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    match /activityLogs/{activityId} {
+      allow read: if isAdmin()
+        || (signedIn() && request.auth.uid in resource.data.visibleTo);
+      allow create: if signedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    match /cargoDocuments/{documentId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.uploadedBy == request.auth.uid;
+      allow update, delete: if isAdmin()
+        || (signedIn() && resource.data.uploadedBy == request.auth.uid);
+    }
+
+    match /userReports/{reportId} {
+      allow create: if signedIn()
+        && request.resource.data.reporterId == request.auth.uid;
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /conversations/{conversationId} {
+      allow read: if isAdmin()
+        || (signedIn() && request.auth.uid in resource.data.participants);
+      allow create, update: if signedIn()
+        && request.auth.uid in request.resource.data.participants;
+      allow delete: if isAdmin();
+
+      match /messages/{messageId} {
+        allow read: if isAdmin() || signedIn();
+        allow create: if signedIn()
+          && request.resource.data.senderId == request.auth.uid;
+        allow update, delete: if isAdmin()
+          || (signedIn() && resource.data.senderId == request.auth.uid);
+      }
+    }
+
+    match /clients/{document=**} {
+      allow read, write: if signedIn();
+    }
+
+    match /documents/{document=**} {
+      allow read, write: if signedIn();
+    }
+
+    match /delivery_reports/{document=**} {
+      allow read, write: if signedIn();
+    }
+
+    match /cargo_tracking/{document=**} {
+      allow read, write: if signedIn();
+    }
+
+    // ── OTP Codes ───────────────────────────────────────────────────────────
+    match /emailOtpCodes/{uid} {
+      allow read, write: if isSelf(uid);
+    }
+
+    // ── Tenders ─────────────────────────────────────────────────────────────
+    match /tenders/{tenderId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && !request.auth.token.get('isDriver', false)
+        && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isAdmin()
+        || (signedIn() && resource.data.ownerId == request.auth.uid);
+      allow delete: if isAdmin()
+        || (signedIn() && resource.data.ownerId == request.auth.uid);
+
+      match /bids/{bidId} {
+        allow read: if signedIn();
+        allow create: if signedIn()
+          && request.resource.data.bidderId == request.auth.uid
+          && resource == null;
+        allow update: if signedIn()
+          && (resource.data.bidderId == request.auth.uid
+            || get(/databases/$(database)/documents/tenders/$(tenderId)).data.ownerId == request.auth.uid);
+        allow delete: if isAdmin();
+      }
+    }
+  }
+}
