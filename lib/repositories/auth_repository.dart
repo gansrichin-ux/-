@@ -94,8 +94,12 @@ class AuthRepository {
     String? car,
   }) async {
     const validRoles = [
-      'logistician', 'driver', 'forwarder', 'cargo_owner',
-      'driver_forwarder', 'driver_cargo_owner'
+      'logistician',
+      'driver',
+      'forwarder',
+      'cargo_owner',
+      'driver_forwarder',
+      'driver_cargo_owner'
     ];
     if (!validRoles.contains(role)) {
       throw ArgumentError('Недопустимая роль для регистрации');
@@ -103,8 +107,22 @@ class AuthRepository {
 
     final normalizedUsername = _normalizeUsername(username);
 
+    // Compute roles array
+    List<String> computedRoles;
+    switch (role) {
+      case 'driver_forwarder':
+        computedRoles = ['driver', 'forwarder'];
+        break;
+      case 'driver_cargo_owner':
+        computedRoles = ['driver', 'cargo_owner'];
+        break;
+      default:
+        computedRoles = [role];
+    }
+
     // Проверяем имя пользователя до создания аккаунта
-    final usernameRef = _firestore.collection('usernames').doc(normalizedUsername);
+    final usernameRef =
+        _firestore.collection('usernames').doc(normalizedUsername);
     final usernameDoc = await usernameRef.get();
     if (usernameDoc.exists) {
       throw FirebaseAuthException(
@@ -120,44 +138,53 @@ class AuthRepository {
 
     final uid = cred.user!.uid;
 
-    // Workaround for Firebase Web Race Condition where Firestore doesn't have the token yet.
-    await cred.user?.getIdToken(true);
-    await Future.delayed(const Duration(milliseconds: 1500));
-
-    final user = UserModel(
-      uid: uid,
-      email: cred.user!.email ?? email,
-      role: role,
-      username: normalizedUsername,
-      name: name?.trim(),
-      car: car?.trim(),
-    );
-
     try {
+      // Workaround for Firebase Web Race Condition where Firestore doesn't have the token yet.
+      await cred.user?.getIdToken(true);
+      await Future.delayed(const Duration(milliseconds: 1500));
+
+      final user = UserModel(
+        uid: uid,
+        email: cred.user!.email ?? email.trim(),
+        role: role,
+        roles: computedRoles,
+        username: normalizedUsername,
+        name: name?.trim(),
+        car: car?.trim(),
+        preferredLanguage: 'ru', // Default for new registrations
+      );
+
       int retries = 4;
       bool success = false;
-      
+
       while (retries > 0 && !success) {
         try {
           final batch = _firestore.batch();
 
-          batch.set(usernameRef, {
-            'uid': uid,
-            'username': normalizedUsername,
-            'createdAt': FieldValue.serverTimestamp(),
-          });
-          
+          batch.set(
+            usernameRef,
+            {
+              'uid': uid,
+              'username': normalizedUsername,
+              'createdAt': FieldValue.serverTimestamp(),
+            },
+            SetOptions(merge: true),
+          );
+
           batch.set(_firestore.collection('users').doc(uid), {
             'uid': uid,
             'role': role,
+            'roles': computedRoles,
             'email': user.email,
             'username': normalizedUsername,
-            'usernameLower': normalizedUsername,
+            'usernameLower': normalizedUsername.toLowerCase(),
             if (user.name?.isNotEmpty == true) 'name': user.name,
             if (user.car?.isNotEmpty == true) 'car': user.car,
+            'preferredLanguage': user.preferredLanguage,
             'ratingCount': 0,
             'ratingSum': 0,
             'emailCodeVerified': false,
+            'createdAt': FieldValue.serverTimestamp(),
           });
 
           await batch.commit().timeout(const Duration(seconds: 8));
@@ -171,35 +198,65 @@ class AuthRepository {
           rethrow;
         }
       }
+
+      // 2. Распределяем по специальным коллекциям (Legacy Mirror)
+      await _writeLegacyRoleMirror(user);
+
+      NotificationService.instance.saveToken(uid);
+      return user;
+    } on FirebaseException catch (e) {
+      // If it's a permission error, give a more user-friendly message
+      if (e.code == 'permission-denied') {
+        // Cleanup Auth user if Firestore failed due to permissions
+        await cred.user?.delete();
+        throw FirebaseAuthException(
+          code: 'permission-denied',
+          message:
+              'Нет прав для создания профиля. Проверьте роль пользователя или обратитесь в поддержку.',
+        );
+      }
+      await cred.user?.delete();
+      rethrow;
     } catch (error) {
+      // Cleanup Auth user on any other error
       await cred.user?.delete();
       rethrow;
     }
+  }
 
-    // 2. Распределяем по специальным коллекциям
-    final collectionName = user.isDriver ? 'drivers' : 'logisticians';
-    
+  /// Writes user data to legacy collections 'drivers' or 'logisticians' if needed.
+  /// Forwarders and Cargo Owners only live in the 'users' collection.
+  Future<void> _writeLegacyRoleMirror(UserModel user) async {
+    String? collectionName;
+    if (user.roles.contains('driver')) {
+      collectionName = 'drivers';
+    } else if (user.roles.contains('logistician')) {
+      collectionName = 'logisticians';
+    }
+
+    if (collectionName == null) return;
+
     int collectionRetries = 3;
     while (collectionRetries > 0) {
       try {
         await _firestore
             .collection(collectionName)
-            .doc(uid)
+            .doc(user.uid)
             .set(user.toMap())
             .timeout(const Duration(seconds: 5));
-        break;
+        return;
       } catch (e) {
-        if (e.toString().contains('permission-denied') && collectionRetries > 1) {
+        if (e.toString().contains('permission-denied') &&
+            collectionRetries > 1) {
           collectionRetries--;
           await Future.delayed(const Duration(seconds: 1));
           continue;
         }
-        rethrow;
+        // We don't rethrow here to avoid failing the whole registration
+        // if just the legacy mirror fails (users collection is the source of truth now).
+        return;
       }
     }
-
-    NotificationService.instance.saveToken(uid);
-    return user;
   }
 
   Future<void> sendEmailVerification() async {
