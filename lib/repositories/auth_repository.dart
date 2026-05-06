@@ -94,12 +94,13 @@ class AuthRepository {
     String? car,
   }) async {
     const validRoles = [
+      'carrier',
       'logistician',
-      'driver',
-      'forwarder',
       'cargo_owner',
-      'driver_forwarder',
-      'driver_cargo_owner'
+      'forwarder',
+      'carrier_forwarder',
+      'cargo_owner_carrier',
+      'logistician_carrier'
     ];
     if (!validRoles.contains(role)) {
       throw ArgumentError('Недопустимая роль для регистрации');
@@ -220,7 +221,7 @@ class AuthRepository {
     String? collectionName;
     String legacyRole = user.role;
 
-    if (user.roles.contains('driver')) {
+    if (user.roles.contains('carrier')) {
       collectionName = 'drivers';
       // For compatibility with firestore.rules that might expect exactly 'driver'
       legacyRole = 'driver';
@@ -261,12 +262,17 @@ class AuthRepository {
 
   List<String> _rolesFromSelectedRole(String role) {
     switch (role) {
+      case 'carrier_forwarder':
       case 'driver_forwarder':
-        return ['driver', 'forwarder'];
+        return ['carrier', 'forwarder'];
+      case 'cargo_owner_carrier':
       case 'driver_cargo_owner':
-        return ['driver', 'cargo_owner'];
+        return ['cargo_owner', 'carrier'];
+      case 'logistician_carrier':
+        return ['logistician', 'carrier'];
+      case 'carrier':
       case 'driver':
-        return ['driver'];
+        return ['carrier'];
       case 'logistician':
         return ['logistician'];
       case 'forwarder':
@@ -340,6 +346,7 @@ class AuthRepository {
 
     final data = userDoc.data() as Map<String, dynamic>;
     final role = data['role'] as String? ?? 'logistician';
+    final roles = data['roles'] as List<dynamic>?;
 
     // Совместимость: если старый формат (все данные в 'users')
     if (data.containsKey('email') && data.length > 3) {
@@ -350,9 +357,12 @@ class AuthRepository {
 
     // If not in new format, try legacy collections
     String? collectionName;
-    if (role == 'driver' || role.startsWith('driver_')) {
+    bool isCarrier = role == 'carrier' || role == 'driver' || 
+                    (roles != null && (roles.contains('carrier') || roles.contains('driver')));
+    
+    if (isCarrier) {
       collectionName = 'drivers';
-    } else if (role == 'logistician') {
+    } else if (role == 'logistician' || (roles != null && roles.contains('logistician'))) {
       collectionName = 'logisticians';
     }
 
@@ -432,9 +442,9 @@ class AuthRepository {
 
     // Only mirror to legacy collections if applicable
     String? roleCollection;
-    if (model.roles.contains('driver')) {
+    if (model.isCarrier) {
       roleCollection = 'drivers';
-    } else if (model.role == 'logistician') {
+    } else if (model.isLogistician) {
       roleCollection = 'logisticians';
     }
 

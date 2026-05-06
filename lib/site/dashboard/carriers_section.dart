@@ -1,54 +1,54 @@
 part of '../../main_site.dart';
 
-class DriversSection extends StatelessWidget {
+class CarriersSection extends StatelessWidget {
   final List<CargoModel> cargos;
-  final List<UserModel> drivers;
+  final List<UserModel> carriers;
   final UserModel user;
-  final Future<void> Function(CargoModel cargo, UserModel driver)
-  onAssignDriver;
+  final Future<void> Function(CargoModel cargo, UserModel carrier)
+  onAssignCarrier;
 
-  const DriversSection({
+  const CarriersSection({
     super.key,
     required this.cargos,
-    required this.drivers,
+    required this.carriers,
     required this.user,
-    required this.onAssignDriver,
+    required this.onAssignCarrier,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (user.isDriver) {
+    if (user.isCarrier) {
       return const Center(
         child: _StatePanel(
           icon: Icons.badge_outlined,
-          title: 'Личный кабинет водителя',
-          message: 'Раздел водителей доступен логисту.',
+          title: 'Личный кабинет перевозчика',
+          message: 'Раздел перевозчиков доступен логисту.',
         ),
       );
     }
 
-    if (drivers.isEmpty) {
+    if (carriers.isEmpty) {
       return const Center(
         child: _StatePanel(
           icon: Icons.badge_outlined,
-          title: 'Водители не найдены',
-          message: 'Список появится после регистрации водителей.',
+          title: 'Перевозчики не найдены',
+          message: 'Список появится после регистрации перевозчиков.',
         ),
       );
     }
 
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 96),
-      itemCount: drivers.length,
+      itemCount: carriers.length,
       separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        final driver = drivers[index];
-        final assigned = cargos.where((cargo) => cargo.driverId == driver.uid);
+        final carrier = carriers[index];
+        final assigned = cargos.where((cargo) => cargo.carrierId == carrier.uid);
         final active = assigned
-            .where((cargo) => cargo.status == 'В пути')
+            .where((cargo) => cargo.status == CargoStatus.inTransit)
             .length;
         final available = cargos
-            .where((cargo) => cargo.status == CargoStatus.published && cargo.driverId == null)
+            .where((cargo) => cargo.status == CargoStatus.published && cargo.carrierId == null)
             .toList();
 
         return AppCard(
@@ -78,7 +78,7 @@ class DriversSection extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            driver.displayName,
+                            carrier.displayName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: Theme.of(context).textTheme.titleMedium
@@ -86,7 +86,7 @@ class DriversSection extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            driver.car ?? 'Бригада / транспорт не указаны',
+                            carrier.car ?? 'Бригада / транспорт не указаны',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -105,14 +105,14 @@ class DriversSection extends StatelessWidget {
                 final controls = Row(
                   mainAxisSize: compact ? MainAxisSize.max : MainAxisSize.min,
                   children: [
-                    _DriverCounter(label: 'Активно', value: active),
+                    _CarrierCounter(label: 'Активно', value: active),
                     const SizedBox(width: 10),
-                    _DriverCounter(label: 'Всего', value: assigned.length),
+                    _CarrierCounter(label: 'Всего', value: assigned.length),
                     const SizedBox(width: 10),
                     if (available.isNotEmpty)
                       AppButton(
                         onPressed: () =>
-                            _showAssignDialog(context, driver, available),
+                            _showAssignDialog(context, carrier, available),
                         icon: Icons.assignment_rounded,
                         label: 'Груз',
                       ),
@@ -141,13 +141,13 @@ class DriversSection extends StatelessWidget {
 
   Future<void> _showAssignDialog(
     BuildContext context,
-    UserModel driver,
+    UserModel carrier,
     List<CargoModel> available,
   ) async {
     final cargo = await showDialog<CargoModel>(
       context: context,
       builder: (context) => SimpleDialog(
-        title: Text('Груз для ${driver.displayName}'),
+        title: Text('Груз для ${carrier.displayName}'),
         children: available
             .map(
               (cargo) => ListTile(
@@ -161,15 +161,15 @@ class DriversSection extends StatelessWidget {
       ),
     );
 
-    if (cargo != null) await onAssignDriver(cargo, driver);
+    if (cargo != null) await onAssignCarrier(cargo, carrier);
   }
 }
 
-class _DriverCounter extends StatelessWidget {
+class _CarrierCounter extends StatelessWidget {
   final String label;
   final int value;
 
-  const _DriverCounter({required this.label, required this.value});
+  const _CarrierCounter({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {

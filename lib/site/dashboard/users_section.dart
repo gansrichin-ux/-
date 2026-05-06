@@ -27,7 +27,13 @@ class _UsersSectionState extends State<UsersSection> {
   @override
   Widget build(BuildContext context) {
     final users = widget.users.where((user) {
-      if (_role != 'all' && user.role != _role) return false;
+      if (_role != 'all') {
+        if (_role == 'carrier') {
+          if (!user.isCarrier) return false;
+        } else if (user.role != _role) {
+          return false;
+        }
+      }
       final query = _query.trim().toLowerCase().replaceFirst('@', '');
       if (query.isEmpty) return true;
       return user.displayName.toLowerCase().contains(query) ||
@@ -58,7 +64,7 @@ class _UsersSectionState extends State<UsersSection> {
                 segments: const [
                   ButtonSegment(value: 'all', label: Text('Все')),
                   ButtonSegment(value: 'logistician', label: Text('Логисты')),
-                  ButtonSegment(value: 'driver', label: Text('Водители')),
+                  ButtonSegment(value: 'carrier', label: Text('Перевозчики')),
                 ],
                 selected: {_role},
                 showSelectedIcon: false,
@@ -132,7 +138,7 @@ class _UserDirectoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final roleColor = user.isDriver ? colors.tertiary : colors.primary;
+    final roleColor = user.isCarrier ? colors.tertiary : colors.primary;
 
     return AppCard(
       padding: EdgeInsets.zero,
@@ -178,7 +184,7 @@ class _UserDirectoryCard extends StatelessWidget {
                           label: user.displayUsername,
                         ),
                         _InfoChip(
-                          icon: user.isDriver
+                          icon: user.isCarrier
                               ? Icons.inventory_2_rounded
                               : Icons.manage_accounts_rounded,
                           label: user.displayRole,

@@ -26,7 +26,7 @@ class _UserProfileDialogState extends State<UserProfileDialog> {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final roleColor =
-        widget.profile.isDriver ? colors.tertiary : colors.primary;
+        widget.profile.isCarrier ? colors.tertiary : colors.primary;
 
     return Dialog(
       insetPadding: const EdgeInsets.all(24),
@@ -84,7 +84,7 @@ class _UserProfileDialogState extends State<UserProfileDialog> {
                 runSpacing: 8,
                 children: [
                   _InfoChip(
-                    icon: widget.profile.isDriver
+                    icon: widget.profile.isCarrier
                         ? Icons.inventory_2_rounded
                         : Icons.manage_accounts_rounded,
                     label: widget.profile.displayRole,

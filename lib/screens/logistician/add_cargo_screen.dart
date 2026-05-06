@@ -1,5 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import '../../core/config/cargo_statuses.dart';
+import '../../core/config/truck_body_types.dart';
 import '../../repositories/cargo_repository.dart';
 import '../../repositories/auth_repository.dart';
 import '../../models/cargo_model.dart';
@@ -34,7 +38,7 @@ class _AddCargoScreenState extends State<AddCargoScreen> {
   bool _isLoading = false;
   final List<XFile> _selectedPhotos = [];
 
-  final List<String> _bodyTypeOptions = bodyTypes;
+  final List<String> _bodyTypeOptions = TruckBodyTypes.labels.values.toList();
   final List<String> _truckTypeOptions = ['Автовоз', 'Газель', 'Трал', 'Микроавтобус', 'Легковая'];
 
   @override

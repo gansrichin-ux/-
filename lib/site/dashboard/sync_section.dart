@@ -2,13 +2,13 @@ part of '../../main_site.dart';
 
 class SyncSection extends StatelessWidget {
   final List<CargoModel> cargos;
-  final List<UserModel> drivers;
+  final List<UserModel> carriers;
   final UserModel user;
 
   const SyncSection({
     super.key,
     required this.cargos,
-    required this.drivers,
+    required this.carriers,
     required this.user,
   });
 
@@ -39,8 +39,8 @@ class SyncSection extends StatelessWidget {
               ),
               _SyncStatusCard(
                 icon: Icons.badge_rounded,
-                title: 'Коллекция водителей',
-                value: '${drivers.length} записей',
+                title: 'Коллекция перевозчиков',
+                value: '${carriers.length} записей',
                 color: const Color(0xFFB45309),
               ),
             ];

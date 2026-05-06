@@ -2,7 +2,7 @@ part of '../../main_site.dart';
 
 class OverviewSection extends StatelessWidget {
   final List<CargoModel> cargos;
-  final List<UserModel> drivers;
+  final List<UserModel> carriers;
   final UserModel user;
   final VoidCallback onOpenCargo;
   final ValueChanged<String> onOpenMyCargosWithStatus;
@@ -11,7 +11,7 @@ class OverviewSection extends StatelessWidget {
   const OverviewSection({
     super.key,
     required this.cargos,
-    required this.drivers,
+    required this.carriers,
     required this.user,
     required this.onOpenCargo,
     required this.onOpenMyCargosWithStatus,
@@ -42,7 +42,7 @@ class OverviewSection extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        _buildStatsGrid(context, stats, drivers.length),
+        _buildStatsGrid(context, stats, carriers.length),
         const SizedBox(height: 24),
         if (isWide)
           IntrinsicHeight(
@@ -64,7 +64,7 @@ class OverviewSection extends StatelessWidget {
     );
   }
 
-  Widget _buildStatsGrid(BuildContext context, CargoStatsView stats, int driverCount) {
+  Widget _buildStatsGrid(BuildContext context, CargoStatsView stats, int carrierCount) {
     final averagePrice = stats.total == 0 ? 0.0 : stats.revenue / stats.total;
     
     return AppResponsiveGrid(

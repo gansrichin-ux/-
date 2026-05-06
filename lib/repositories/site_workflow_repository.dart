@@ -41,7 +41,7 @@ class SiteWorkflowRepository {
   Stream<List<CargoApplicationModel>> watchApplicationsForUser(UserModel user) {
     if (user.isAdmin) return watchAllApplications();
 
-    final field = user.isDriver ? 'applicantId' : 'ownerId';
+    final field = user.isCarrier ? 'applicantId' : 'ownerId';
     return _applications
         .where(field, isEqualTo: user.uid)
         .limit(160)
@@ -121,7 +121,7 @@ class SiteWorkflowRepository {
     if (cargo.ownerId == applicant.uid) {
       throw Exception('Нельзя откликнуться на свой груз');
     }
-    if (cargo.driverId != null && cargo.driverId!.isNotEmpty) {
+    if (cargo.carrierId != null && cargo.carrierId!.isNotEmpty) {
       throw Exception('На этот груз уже назначен исполнитель');
     }
 
@@ -191,9 +191,12 @@ class SiteWorkflowRepository {
 
     if (accepted) {
       batch.update(_firestore.collection('cargos').doc(cargo.id), {
+        // Write both legacy and new fields for backward compatibility
         'driverId': application.applicantId,
         'driverName': application.applicantName,
-        // executorSelected = driver chosen, waiting for trip confirmation
+        'executorId': application.applicantId,
+        'executorName': application.applicantName,
+        // executorSelected = carrier chosen, waiting for trip confirmation
         'status': CargoStatus.executorSelected,
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -462,7 +465,8 @@ class SiteWorkflowRepository {
     return <String>{
       fallbackUserId,
       if (cargo.ownerId?.isNotEmpty == true) cargo.ownerId!,
-      if (cargo.driverId?.isNotEmpty == true) cargo.driverId!,
+      // carrierId covers both legacy driverId and new executorId
+      if (cargo.carrierId?.isNotEmpty == true) cargo.carrierId!,
     }.toList();
   }
 

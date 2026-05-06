@@ -16,7 +16,7 @@ class CargoStatsView {
   double get revenue => cargos.fold<double>(0, (sum, cargo) => sum + (cargo.price ?? 0));
 
   int get newCount => cargos.where((cargo) => cargo.status == CargoStatus.published).length;
-  int get unassigned => cargos.where((cargo) => cargo.status == CargoStatus.published && cargo.driverId == null).length;
+  int get unassigned => cargos.where((cargo) => cargo.status == CargoStatus.published && cargo.carrierId == null).length;
   double get distance => cargos.fold<double>(0, (sum, cargo) => sum + (cargo.distanceKm ?? 0));
 }
 
@@ -34,7 +34,7 @@ class CargoFilters {
   final double? minPrice;
   final double? maxPrice;
   final String? currency;
-  final bool onlyWithoutDriver;
+  final bool onlyWithoutCarrier;
   final bool onlyActive;
   final bool isUrgent;
   final bool isHumanitarian;
@@ -58,7 +58,7 @@ class CargoFilters {
     this.minPrice,
     this.maxPrice,
     this.currency,
-    this.onlyWithoutDriver = false,
+    this.onlyWithoutCarrier = false,
     this.onlyActive = false,
     this.isUrgent = false,
     this.isHumanitarian = false,
@@ -85,7 +85,7 @@ class CargoFilters {
       minPrice != null ||
       maxPrice != null ||
       currency != null ||
-      onlyWithoutDriver ||
+      onlyWithoutCarrier ||
       onlyActive ||
       isUrgent ||
       isHumanitarian ||
@@ -109,7 +109,7 @@ class CargoFilters {
     double? minPrice,
     double? maxPrice,
     String? currency,
-    bool? onlyWithoutDriver,
+    bool? onlyWithoutCarrier,
     bool? onlyActive,
     bool? isUrgent,
     bool? isHumanitarian,
@@ -144,7 +144,7 @@ class CargoFilters {
       minPrice: clearMinPrice ? null : minPrice ?? this.minPrice,
       maxPrice: clearMaxPrice ? null : maxPrice ?? this.maxPrice,
       currency: currency ?? this.currency,
-      onlyWithoutDriver: onlyWithoutDriver ?? this.onlyWithoutDriver,
+      onlyWithoutCarrier: onlyWithoutCarrier ?? this.onlyWithoutCarrier,
       onlyActive: onlyActive ?? this.onlyActive,
       isUrgent: isUrgent ?? this.isUrgent,
       isHumanitarian: isHumanitarian ?? this.isHumanitarian,

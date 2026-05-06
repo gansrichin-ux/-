@@ -517,7 +517,7 @@ class _SiteLoginScreenState extends State<SiteLoginScreen> {
   var _isLoading = false;
   var _obscurePassword = true;
   var _isRegistering = false;
-  var _selectedRole = 'logistician';
+  var _selectedRole = 'carrier';
 
   @override
   void dispose() {
@@ -541,7 +541,7 @@ class _SiteLoginScreenState extends State<SiteLoginScreen> {
               role: _selectedRole,
               username: _usernameController.text,
               name: _nameController.text,
-              car: _selectedRole.contains('driver') ? _carController.text : null,
+              car: (_selectedRole == 'carrier' || _selectedRole.contains('carrier')) ? _carController.text : null,
             )
           : await AuthRepository.instance.signIn(
               _emailController.text,
@@ -710,7 +710,7 @@ class _SiteLoginScreenState extends State<SiteLoginScreen> {
                 },
                 onFieldSubmitted: (_) => _submit(),
               ),
-              if (_isRegistering && _selectedRole.contains('driver')) ...[
+              if (_isRegistering && (_selectedRole == 'carrier' || _selectedRole.contains('carrier'))) ...[
                 const SizedBox(height: 14),
                 TextFormField(
                   controller: _carController,
@@ -787,28 +787,32 @@ class _RoleSelector extends StatelessWidget {
       ),
       items: const [
         DropdownMenuItem(
+          value: 'carrier',
+          child: Text('Перевозчик'),
+        ),
+        DropdownMenuItem(
           value: 'logistician',
           child: Text('Логист'),
-        ),
-        DropdownMenuItem(
-          value: 'driver',
-          child: Text('Водитель'),
-        ),
-        DropdownMenuItem(
-          value: 'forwarder',
-          child: Text('Экспедитор'),
         ),
         DropdownMenuItem(
           value: 'cargo_owner',
           child: Text('Грузовладелец'),
         ),
         DropdownMenuItem(
-          value: 'driver_forwarder',
-          child: Text('Водитель-экспедитор'),
+          value: 'forwarder',
+          child: Text('Экспедитор'),
         ),
         DropdownMenuItem(
-          value: 'driver_cargo_owner',
-          child: Text('Водитель-Грузовладелец'),
+          value: 'carrier_forwarder',
+          child: Text('Перевозчик-Экспедитор'),
+        ),
+        DropdownMenuItem(
+          value: 'cargo_owner_carrier',
+          child: Text('Грузовладелец-Перевозчик'),
+        ),
+        DropdownMenuItem(
+          value: 'logistician_carrier',
+          child: Text('Логист-Перевозчик'),
         ),
       ],
       onChanged: (val) {

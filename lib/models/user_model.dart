@@ -36,9 +36,17 @@ class UserModel {
     this.emailCodeVerified = false,
   });
 
-  bool get isDriver => RolePermissions.hasRole(this, RolePermissions.driver);
+  bool get isCarrier => RolePermissions.hasRole(this, RolePermissions.carrier) || RolePermissions.hasRole(this, 'driver');
   bool get isLogistician => RolePermissions.hasRole(this, RolePermissions.logistician);
+  bool get isCargoOwner => RolePermissions.hasRole(this, RolePermissions.cargoOwner);
+  bool get isForwarder => RolePermissions.hasRole(this, RolePermissions.forwarder);
+  bool get isCarrierForwarder => RolePermissions.hasRole(this, RolePermissions.carrierForwarder) || RolePermissions.hasRole(this, 'driver_forwarder');
+  bool get isCargoOwnerCarrier => RolePermissions.hasRole(this, RolePermissions.cargoOwnerCarrier) || RolePermissions.hasRole(this, 'driver_cargo_owner');
+  bool get isLogisticianCarrier => RolePermissions.hasRole(this, RolePermissions.logisticianCarrier);
   bool get isAdmin => RolePermissions.hasRole(this, RolePermissions.admin);
+
+  // Legacy compatibility
+  bool get isDriver => isCarrier;
 
   // Business logic getters
   bool get canCreateCargo => RolePermissions.canCreateCargo(this);
@@ -88,17 +96,19 @@ class UserModel {
     }
     
     // Support legacy documents where 'roles' doesn't exist yet
-    final legacyRole = data['role'] as String? ?? 'logistician';
+    final rawLegacyRole = data['role'] as String? ?? 'logistician';
     final parsedRoles = data['roles'] as List<dynamic>?;
-    final List<String> currentRoles = parsedRoles != null 
-        ? parsedRoles.map((e) => e.toString()).toList()
-        : [legacyRole];
+    
+    final normalizedRoles = normalizeRoles(
+      parsedRoles?.map((e) => e.toString()).toList() ?? [],
+      rawLegacyRole,
+    );
 
     return UserModel(
       uid: doc.id,
       email: data['email'] as String? ?? '',
-      role: legacyRole,
-      roles: currentRoles,
+      role: normalizedRoles.isNotEmpty ? normalizedRoles.first : rawLegacyRole,
+      roles: normalizedRoles,
       companyId: data['companyId'] as String?,
       preferredLanguage: data['preferredLanguage'] as String?,
       username: data['username'] as String?,
@@ -114,17 +124,19 @@ class UserModel {
   }
 
   factory UserModel.fromMap(Map<String, dynamic> map) {
-    final legacyRole = map['role'] as String? ?? 'logistician';
+    final rawLegacyRole = map['role'] as String? ?? 'logistician';
     final parsedRoles = map['roles'] as List<dynamic>?;
-    final List<String> currentRoles = parsedRoles != null 
-        ? parsedRoles.map((e) => e.toString()).toList()
-        : [legacyRole];
+    
+    final normalizedRoles = normalizeRoles(
+      parsedRoles?.map((e) => e.toString()).toList() ?? [],
+      rawLegacyRole,
+    );
 
     return UserModel(
       uid: map['uid'] as String,
       email: map['email'] as String,
-      role: legacyRole,
-      roles: currentRoles,
+      role: normalizedRoles.isNotEmpty ? normalizedRoles.first : rawLegacyRole,
+      roles: normalizedRoles,
       companyId: map['companyId'] as String?,
       preferredLanguage: map['preferredLanguage'] as String?,
       username: map['username'] as String?,
@@ -172,19 +184,75 @@ class UserModel {
   }
 
   String get displayRole {
-    // If the user has a primary modern role in `roles`, use it.
-    // Otherwise fallback to old display logic.
     final effectiveRole = roles.isNotEmpty ? roles.first : role;
 
     switch (effectiveRole) {
-      case 'logistician': return 'Логист';
-      case 'driver': return 'Водитель';
-      case 'forwarder': return 'Экспедитор';
-      case 'cargo_owner': return 'Грузовладелец';
-      case 'driver_forwarder': return 'Водитель-экспедитор';
-      case 'driver_cargo_owner': return 'Водитель-Грузовладелец';
-      case 'admin': return 'Администратор';
-      default: return isDriver ? 'Водитель' : 'Логист';
+      case 'carrier':
+      case 'driver':
+        return 'Перевозчик';
+      case 'logistician':
+        return 'Логист';
+      case 'cargo_owner':
+        return 'Грузовладелец';
+      case 'forwarder':
+        return 'Экспедитор';
+      case 'carrier_forwarder':
+      case 'driver_forwarder':
+        return 'Перевозчик-Экспедитор';
+      case 'cargo_owner_carrier':
+      case 'driver_cargo_owner':
+        return 'Грузовладелец-Перевозчик';
+      case 'logistician_carrier':
+        return 'Логист-Перевозчик';
+      case 'admin':
+        return 'Администратор';
+      default:
+        return isCarrier ? 'Перевозчик' : 'Логист';
+    }
+  }
+
+  static List<String> normalizeRoles(List<String> roles, String? legacyRole) {
+    final result = <String>{};
+
+    // 1. Process array
+    for (var r in roles) {
+      result.add(_normalizeRoleKey(r));
+    }
+
+    // 2. Process legacy single role if array is empty
+    if (result.isEmpty && legacyRole != null) {
+      result.add(_normalizeRoleKey(legacyRole));
+    }
+
+    // 3. Handle hybrid role expansions
+    // We clone the current set to avoid modification during iteration if we were using a list, 
+    // but with a set and explicit checks it's fine.
+    if (result.contains('carrier_forwarder')) {
+      result.add('carrier');
+      result.add('forwarder');
+    }
+    if (result.contains('cargo_owner_carrier')) {
+      result.add('cargo_owner');
+      result.add('carrier');
+    }
+    if (result.contains('logistician_carrier')) {
+      result.add('logistician');
+      result.add('carrier');
+    }
+
+    return result.toList();
+  }
+
+  static String _normalizeRoleKey(String key) {
+    switch (key) {
+      case 'driver':
+        return 'carrier';
+      case 'driver_forwarder':
+        return 'carrier_forwarder';
+      case 'driver_cargo_owner':
+        return 'cargo_owner_carrier';
+      default:
+        return key;
     }
   }
 

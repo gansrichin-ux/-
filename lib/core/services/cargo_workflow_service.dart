@@ -13,26 +13,36 @@ class CargoWorkflowService {
     await CargoRepository.instance.addCargo(newCargo);
   }
 
-  Future<void> assignDriver({
+  /// Assigns a carrier (перевозчик) to a cargo.
+  /// Writes both legacy `driverId` and new `executorId` fields for compatibility.
+  Future<void> assignCarrier({
     required CargoModel cargo,
-    required UserModel driver,
+    required UserModel carrier,
     required UserModel actor,
   }) async {
-    await CargoRepository.instance.assignDriver(
+    await CargoRepository.instance.assignCarrier(
       cargoId: cargo.id,
-      driverId: driver.uid,
-      driverName: driver.displayName,
+      carrierId: carrier.uid,
+      carrierName: carrier.displayName,
     );
-    
+
     await SiteWorkflowRepository.instance.updateCargoStatus(
       cargo: cargo.copyWith(
-        driverId: driver.uid,
-        driverName: driver.displayName,
+        executorId: carrier.uid,
+        executorName: carrier.displayName,
       ),
       actor: actor,
       status: CargoStatus.executorSelected,
     );
   }
+
+  /// Legacy alias — mobile screens that already call assignDriver keep working.
+  Future<void> assignDriver({
+    required CargoModel cargo,
+    required UserModel driver,
+    required UserModel actor,
+  }) =>
+      assignCarrier(cargo: cargo, carrier: driver, actor: actor);
 
   Future<void> updateStatus({
     required CargoModel cargo,

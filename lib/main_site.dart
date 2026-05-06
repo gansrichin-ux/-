@@ -66,7 +66,7 @@ part 'site/dashboard/chats_section.dart';
 part 'site/dashboard/transport_sections.dart';
 part 'site/dashboard/transport_dialogs.dart';
 part 'site/dashboard/workflow_sections.dart';
-part 'site/dashboard/drivers_section.dart';
+part 'site/dashboard/carriers_section.dart';
 part 'site/dashboard/users_section.dart';
 part 'site/dashboard/sync_section.dart';
 part 'site/dialogs/add_cargo_dialog.dart';

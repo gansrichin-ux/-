@@ -40,7 +40,8 @@ service cloud.firestore {
     function isCargoParticipant() {
       return signedIn()
         && (resource.data.ownerId == request.auth.uid
-          || resource.data.driverId == request.auth.uid);
+          || resource.data.driverId == request.auth.uid
+          || (resource.data.executorId != null && resource.data.executorId == request.auth.uid));
     }
 
     match /adminAccounts/{uid} {
@@ -53,8 +54,9 @@ service cloud.firestore {
       allow create: if isSelf(uid)
         && request.resource.data.uid == uid
         && request.resource.data.role in [
-          'driver', 'logistician', 'forwarder', 'cargo_owner', 
-          'driver_forwarder', 'driver_cargo_owner'
+          'carrier', 'logistician', 'cargo_owner', 'forwarder',
+          'carrier_forwarder', 'cargo_owner_carrier', 'logistician_carrier',
+          'driver', 'driver_forwarder', 'driver_cargo_owner'
         ];
       allow update: if isAdmin()
         || (isSelf(uid) && ownProfileUpdate())
@@ -209,6 +211,7 @@ service cloud.firestore {
       allow read: if signedIn();
       allow create: if signedIn()
         && !request.auth.token.get('isDriver', false)
+        && !request.auth.token.get('isCarrier', false)
         && request.resource.data.ownerId == request.auth.uid;
       allow update: if isAdmin()
         || (signedIn() && resource.data.ownerId == request.auth.uid);

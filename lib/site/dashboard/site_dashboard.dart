@@ -18,6 +18,7 @@ enum SiteSection {
   users,
   activity,
   admin,
+  carriers,
   sync,
 }
 
@@ -72,6 +73,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
         SiteSection.tender,
         SiteSection.insurance,
         SiteSection.legal,
+        SiteSection.carriers,
         SiteSection.support,
       ];
 
@@ -96,7 +98,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
           stream: _usersStream,
           builder: (context, userSnapshot) {
             final users = userSnapshot.data ?? const <UserModel>[];
-            final drivers = users.where((user) => user.isDriver).toList();
+            final carriers = users.where((user) => user.isCarrier).toList();
 
             return StreamBuilder<Set<String>>(
               stream: _favoritesStream,
@@ -149,7 +151,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
                                           )
                                         : _buildSection(
                                             cargos,
-                                            drivers,
+                                            carriers,
                                             users,
                                             favoriteCargoIds,
                                             applications,
@@ -354,7 +356,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
 
   Widget _buildSection(
     List<CargoModel> cargos,
-    List<UserModel> drivers,
+    List<UserModel> carriers,
     List<UserModel> users,
     Set<String> favoriteCargoIds,
     List<CargoApplicationModel> applications,
@@ -364,7 +366,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
       case SiteSection.overview:
         return OverviewSection(
           cargos: _personalCargos(cargos),
-          drivers: drivers,
+          carriers: carriers,
           user: widget.user,
           onOpenCargo: () => setState(() => _section = SiteSection.myCargos),
           onOpenMyCargosWithStatus: (status) {
@@ -394,7 +396,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
         return CargosSection(
           cargos: personalCargos,
           allCargos: _personalCargos(cargos),
-          drivers: drivers,
+          carriers: carriers,
           user: widget.user,
           query: _query,
           status: _status,
@@ -408,7 +410,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
           onStatusChanged: (value) => setState(() => _status = value),
           onFiltersChanged: (value) => setState(() => _filters = value),
           onAddCargo: () => _showCargoDialog(context),
-          onAssignDriver: _assignDriver,
+          onAssignCarrier: _assignCarrier,
           onChangeStatus: _changeStatus,
           onOpenChat: (cargo) => _openChatForCargo(cargo, users),
           onOpenProfile: _openProfile,
@@ -423,7 +425,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
         return CargosSection(
           cargos: filtered,
           allCargos: cargos,
-          drivers: drivers,
+          carriers: carriers,
           user: widget.user,
           query: _query,
           status: _status,
@@ -432,7 +434,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
           onStatusChanged: (value) => setState(() => _status = value),
           onFiltersChanged: (value) => setState(() => _filters = value),
           onAddCargo: () => _showCargoDialog(context),
-          onAssignDriver: _assignDriver,
+          onAssignCarrier: _assignCarrier,
           onChangeStatus: _changeStatus,
           onOpenChat: (cargo) => _openChatForCargo(cargo, users),
           onOpenProfile: _openProfile,
@@ -457,6 +459,13 @@ class _SiteDashboardState extends State<SiteDashboard> {
           user: widget.user,
           initialPeer: _selectedChatUser,
         );
+      case SiteSection.carriers:
+        return CarriersSection(
+          cargos: cargos,
+          carriers: carriers,
+          user: widget.user,
+          onAssignCarrier: _assignCarrier,
+        );
       case SiteSection.notifications:
         return NotificationsSection(user: widget.user);
       case SiteSection.users:
@@ -476,7 +485,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
           allCargos: cargos
               .where((cargo) => favoriteCargoIds.contains(cargo.id))
               .toList(),
-          drivers: drivers,
+          carriers: carriers,
           user: widget.user,
           query: _query,
           status: _status,
@@ -490,7 +499,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
           onStatusChanged: (value) => setState(() => _status = value),
           onFiltersChanged: (value) => setState(() => _filters = value),
           onAddCargo: () => _showCargoDialog(context),
-          onAssignDriver: _assignDriver,
+          onAssignCarrier: _assignCarrier,
           onChangeStatus: _changeStatus,
           onOpenChat: (cargo) => _openChatForCargo(cargo, users),
           onOpenProfile: _openProfile,
@@ -533,7 +542,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
       case SiteSection.admin:
         return AdminSection(user: widget.user, users: users, cargos: cargos);
       case SiteSection.sync:
-        return SyncSection(cargos: cargos, drivers: drivers, user: widget.user);
+        return SyncSection(cargos: cargos, carriers: carriers, user: widget.user);
     }
   }
 
@@ -542,10 +551,10 @@ class _SiteDashboardState extends State<SiteDashboard> {
     List<UserModel> users,
   ) async {
     final peerId = cargo.ownerId == widget.user.uid
-        ? cargo.driverId
-        : cargo.driverId == widget.user.uid
+        ? cargo.carrierId
+        : cargo.carrierId == widget.user.uid
             ? cargo.ownerId
-            : (cargo.ownerId ?? cargo.driverId);
+            : (cargo.ownerId ?? cargo.carrierId);
     final peer = users.cast<UserModel?>().firstWhere(
           (user) => user?.uid == peerId,
           orElse: () => null,
@@ -612,7 +621,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
           _query = cargo?.title ?? '';
           _section = cargo != null &&
                   (cargo.ownerId == widget.user.uid ||
-                      cargo.driverId == widget.user.uid)
+                      cargo.carrierId == widget.user.uid)
               ? SiteSection.myCargos
               : SiteSection.cargos;
         });
@@ -661,9 +670,9 @@ class _SiteDashboardState extends State<SiteDashboard> {
 
   List<CargoModel> _personalCargos(List<CargoModel> cargos) {
     return cargos.where((cargo) {
-      final isMyDriverCargo = widget.user.canApplyToCargo && cargo.driverId == widget.user.uid;
+      final isMyCarrierCargo = widget.user.canApplyToCargo && cargo.carrierId == widget.user.uid;
       final isMyOwnerCargo = widget.user.canCreateCargo && cargo.ownerId == widget.user.uid;
-      return isMyDriverCargo || isMyOwnerCargo;
+      return isMyCarrierCargo || isMyOwnerCargo;
     }).toList();
   }
 
@@ -693,7 +702,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
       if (_status != null && cargo.status != _status) return false;
 
       // Advanced Filters
-      if (_filters.onlyWithoutDriver && cargo.driverId != null) return false;
+      if (_filters.onlyWithoutCarrier && cargo.carrierId != null) return false;
       if (_filters.onlyActive && !cargo.isActive) return false;
 
       // Route Filters
@@ -757,7 +766,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
           cargo.from.toLowerCase().contains(query) ||
           cargo.to.toLowerCase().contains(query) ||
           (cargo.bodyType?.toLowerCase().contains(query) ?? false) ||
-          (cargo.driverName?.toLowerCase().contains(query) ?? false);
+          (cargo.carrierName?.toLowerCase().contains(query) ?? false);
     }).toList();
   }
 
@@ -800,21 +809,21 @@ class _SiteDashboardState extends State<SiteDashboard> {
     }
   }
 
-  Future<void> _assignDriver(CargoModel cargo, UserModel driver) async {
+  Future<void> _assignCarrier(CargoModel cargo, UserModel carrier) async {
     try {
       await CargoWorkflowService.instance.assignDriver(
         cargo: cargo,
-        driver: driver,
+        driver: carrier,
         actor: widget.user,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${driver.displayName} назначен на груз')),
+        SnackBar(content: Text('${carrier.displayName} назначен на груз')),
       );
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Не удалось назначить водителя: $error')),
+        SnackBar(content: Text('Не удалось назначить перевозчика: $error')),
       );
     }
   }
@@ -902,6 +911,8 @@ String _sectionTitle(SiteSection section) {
       return 'Чаты';
     case SiteSection.notifications:
       return 'Уведомления';
+    case SiteSection.carriers:
+      return 'Перевозчики';
     case SiteSection.users:
       return 'Пользователи';
     case SiteSection.favorites:
@@ -943,6 +954,8 @@ String _sectionShortTitle(SiteSection section) {
       return 'Чаты';
     case SiteSection.notifications:
       return 'Инфо';
+    case SiteSection.carriers:
+      return 'Парк';
     case SiteSection.users:
       return 'Люди';
     case SiteSection.favorites:
@@ -988,6 +1001,8 @@ IconData _sectionIcon(SiteSection section, {required bool selected}) {
       return selected
           ? Icons.notifications_active_rounded
           : Icons.notifications_none_rounded;
+    case SiteSection.carriers:
+      return selected ? Icons.local_shipping_rounded : Icons.local_shipping_outlined;
     case SiteSection.users:
       return selected ? Icons.badge_rounded : Icons.badge_outlined;
     case SiteSection.favorites:

@@ -1,4 +1,4 @@
-﻿part of '../../main_site.dart';
+part of '../../main_site.dart';
 
 class FindTransportSection extends StatefulWidget {
   final UserModel user;
@@ -46,8 +46,8 @@ class _FindTransportSectionState extends State<FindTransportSection> {
           child: filtered.isEmpty
               ? const AppEmptyState(
                   icon: Icons.local_shipping_outlined,
-                  title: 'РўСЂР°РЅСЃРїРѕСЂС‚ РЅРµ РЅР°Р№РґРµРЅ',
-                  message: 'РџРѕРїСЂРѕР±СѓР№С‚Рµ РёР·РјРµРЅРёС‚СЊ РїР°СЂР°РјРµС‚СЂС‹ РїРѕРёСЃРєР° РёР»Рё С„РёР»СЊС‚СЂС‹.',
+                  title: 'Транспорт не найден',
+                  message: 'Попробуйте изменить параметры поиска или фильтры.',
                 )
               : GridView.builder(
                   padding: const EdgeInsets.all(24),
@@ -78,7 +78,7 @@ class _FindTransportSectionState extends State<FindTransportSection> {
           Expanded(
             flex: 3,
             child: AppTextField(
-              hint: 'РџРѕРёСЃРє РїРѕ РіРѕСЂРѕРґСѓ, РёРјРµРЅРё РёР»Рё РјРѕРґРµР»Рё...',
+              hint: 'Поиск по городу, имени или модели...',
               prefixIcon: const Icon(Icons.search_rounded),
               onChanged: (v) => setState(() => _query = v),
             ),
@@ -88,9 +88,9 @@ class _FindTransportSectionState extends State<FindTransportSection> {
             flex: 2,
             child: AppDropdown<String>(
               value: _bodyType,
-              hint: 'РўРёРї РєСѓР·РѕРІР°',
+              hint: 'Тип кузова',
               items: [
-                const DropdownMenuItem(value: null, child: Text('Р’СЃРµ С‚РёРїС‹')),
+                const DropdownMenuItem(value: null, child: Text('Все типы')),
                 ...TruckBodyTypes.labels.entries.map((e) => DropdownMenuItem(
                       value: e.key,
                       child: Text(e.value),
@@ -103,7 +103,7 @@ class _FindTransportSectionState extends State<FindTransportSection> {
           Expanded(
             flex: 1,
             child: AppTextField(
-              hint: 'РњРёРЅ. С‚РѕРЅРЅ',
+              hint: 'Мин. тонн',
               keyboardType: TextInputType.number,
               onChanged: (v) => setState(() => _minCapacity = double.tryParse(v)),
             ),
@@ -121,7 +121,7 @@ class _FindTransportSectionState extends State<FindTransportSection> {
 
   void _handlePropose(TransportModel t) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('РџСЂРµРґР»РѕР¶РµРЅРёРµ РѕС‚РїСЂР°РІР»РµРЅРѕ ${t.ownerName}')),
+      SnackBar(content: Text('Предложение отправлено ${t.ownerName}')),
     );
   }
 }
@@ -153,10 +153,10 @@ class MyTransportSection extends StatelessWidget {
         if (transports.isEmpty) {
           return AppEmptyState(
             icon: Icons.commute_rounded,
-            title: 'РЈ РІР°СЃ РїРѕРєР° РЅРµС‚ С‚СЂР°РЅСЃРїРѕСЂС‚Р°',
-            message: 'Р”РѕР±Р°РІСЊС‚Рµ СЃРІРѕРё РјР°С€РёРЅС‹, С‡С‚РѕР±С‹ РіСЂСѓР·РѕРІР»Р°РґРµР»СЊС†С‹ РјРѕРіР»Рё РІР°СЃ РЅР°Р№С‚Рё.',
+            title: 'У вас пока нет транспорта',
+            message: 'Добавьте свои машины, чтобы грузовладельцы и логисты могли вас найти.',
             action: AppButton(
-              label: 'Р”РѕР±Р°РІРёС‚СЊ С‚СЂР°РЅСЃРїРѕСЂС‚',
+              label: 'Добавить транспорт',
               onPressed: onAddTransport,
             ),
           );
@@ -171,8 +171,8 @@ class MyTransportSection extends StatelessWidget {
             return AppCard(
               child: ListTile(
                 leading: const Icon(Icons.local_shipping_rounded, size: 40),
-                title: Text('${t.brand ?? 'РњР°С€РёРЅР°'} ${t.model ?? ''} (${t.plateNumber ?? 'Р‘РµР· РЅРѕРјРµСЂР°'})'),
-                subtitle: Text('${t.bodyTypeLabel} В· ${t.capacityTons} С‚ В· ${t.volumeM3} РјВі'),
+                title: Text('${t.brand ?? 'Машина'} ${t.model ?? ''} (${t.plateNumber ?? 'Без номера'})'),
+                subtitle: Text('${t.bodyTypeLabel} · ${t.capacityTons} т · ${t.volumeM3} м³'),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -252,7 +252,7 @@ class TransportOfferCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  '${transport.capacityTons} С‚',
+                  '${transport.capacityTons} т',
                   style: TextStyle(
                     color: colors.onPrimaryContainer,
                     fontWeight: FontWeight.w900,
@@ -265,11 +265,11 @@ class TransportOfferCard extends StatelessWidget {
           const SizedBox(height: 16),
           const Divider(),
           const SizedBox(height: 12),
-          _buildInfoRow(Icons.route_rounded, 'РњР°СЂС€СЂСѓС‚', transport.preferredDirections.isEmpty ? 'Р›СЋР±РѕРµ РЅР°РїСЂР°РІР»РµРЅРёРµ' : transport.preferredDirections.join(' - ')),
-          _buildInfoRow(Icons.calendar_today_rounded, 'Р”РѕСЃС‚СѓРїРµРЅ', transport.availableFrom != null ? DateFormat('dd.MM.yyyy').format(transport.availableFrom!) : 'РЎРµР№С‡Р°СЃ'),
-          _buildInfoRow(Icons.view_in_ar_rounded, 'РљСѓР·РѕРІ', '${transport.bodyTypeLabel} В· ${transport.volumeM3} РјВі'),
+          _buildInfoRow(Icons.route_rounded, 'Маршрут', transport.preferredDirections.isEmpty ? 'Любое направление' : transport.preferredDirections.join(' - ')),
+          _buildInfoRow(Icons.calendar_today_rounded, 'Доступен', transport.availableFrom != null ? DateFormat('dd.MM.yyyy').format(transport.availableFrom!) : 'Сейчас'),
+          _buildInfoRow(Icons.view_in_ar_rounded, 'Кузов', '${transport.bodyTypeLabel} · ${transport.volumeM3} м³'),
           if (transport.dimensionsLabel.isNotEmpty)
-            _buildInfoRow(Icons.straighten_rounded, 'Р“Р°Р±Р°СЂРёС‚С‹', transport.dimensionsLabel),
+            _buildInfoRow(Icons.straighten_rounded, 'Габариты', transport.dimensionsLabel),
           
           const SizedBox(height: 16),
           Wrap(
@@ -279,7 +279,7 @@ class TransportOfferCard extends StatelessWidget {
               if (transport.hasAdr) const AppStatusBadge(label: 'ADR', color: Colors.orange),
               if (transport.hasGps) const AppStatusBadge(label: 'GPS', color: Colors.blue),
               if (transport.hasTir) const AppStatusBadge(label: 'TIR', color: Colors.green),
-              if (transport.allowsReload) const AppStatusBadge(label: 'Р”РѕРіСЂСѓР·', color: Colors.purple),
+              if (transport.allowsReload) const AppStatusBadge(label: 'Догруз', color: Colors.purple),
             ],
           ),
           
@@ -289,7 +289,7 @@ class TransportOfferCard extends StatelessWidget {
             children: [
               Expanded(
                 child: AppButton(
-                  label: 'РџСЂРµРґР»РѕР¶РёС‚СЊ РіСЂСѓР·',
+                  label: 'Предложить груз',
                   onPressed: onPropose,
                 ),
               ),

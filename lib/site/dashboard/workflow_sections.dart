@@ -42,7 +42,7 @@ class ApplicationsSection extends StatelessWidget {
             icon: Icons.inbox_outlined,
             title: 'Откликов пока нет',
             message:
-                'Когда водители начнут откликаться на грузы, список появится здесь.',
+                'Когда перевозчики начнут откликаться на грузы, список появится здесь.',
           )
         else
           ...visible.map((application) {
@@ -684,7 +684,7 @@ class AdminSection extends StatelessWidget {
       );
     }
 
-    final drivers = users.where((item) => item.isDriver).length;
+    final carriers = users.where((item) => item.isCarrier).length;
     final logisticians = users.where((item) => item.isLogistician).length;
     return StreamBuilder<List<UserReportModel>>(
       stream: SiteWorkflowRepository.instance.watchReports(user),
@@ -709,9 +709,9 @@ class AdminSection extends StatelessWidget {
                       label: 'Пользователей',
                       value: users.length.toString(),
                       icon: Icons.people_alt_outlined),
-                  _AdminMetric(
-                      label: 'Водителей',
-                      value: drivers.toString(),
+                   _AdminMetric(
+                      label: 'Перевозчиков',
+                      value: carriers.toString(),
                       icon: Icons.badge_outlined),
                   _AdminMetric(
                       label: 'Логистов',
