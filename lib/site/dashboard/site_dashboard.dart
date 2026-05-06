@@ -60,7 +60,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
     _transportsStream = TransportRepository.instance.watchAvailableTransport();
   }
 
-  List<SiteSection> get _visibleSections => [
+      List<SiteSection> get _visibleSections => [
         SiteSection.overview,
         SiteSection.company,
         SiteSection.cargos,
@@ -697,8 +697,24 @@ class _SiteDashboardState extends State<SiteDashboard> {
       if (_filters.onlyActive && !cargo.isActive) return false;
 
       // Route Filters
-      if (from.isNotEmpty && !cargo.from.toLowerCase().contains(from)) return false;
-      if (to.isNotEmpty && !cargo.to.toLowerCase().contains(to)) return false;
+      if (from.isNotEmpty || to.isNotEmpty) {
+        final cargoFrom = cargo.from.toLowerCase();
+        final cargoTo = cargo.to.toLowerCase();
+        
+        bool matches = true;
+        if (from.isNotEmpty && !cargoFrom.contains(from)) matches = false;
+        if (to.isNotEmpty && !cargoTo.contains(to)) matches = false;
+        
+        if (!matches && _filters.isTwoWaySearch) {
+          // Check reverse direction
+          bool matchesReverse = true;
+          if (from.isNotEmpty && !cargoTo.contains(from)) matchesReverse = false;
+          if (to.isNotEmpty && !cargoFrom.contains(to)) matchesReverse = false;
+          matches = matchesReverse;
+        }
+        
+        if (!matches) return false;
+      }
 
       // Cargo Specs Filters
       if (bodyType.isNotEmpty && (cargo.bodyType?.toLowerCase() ?? '') != bodyType) return false;
@@ -713,9 +729,13 @@ class _SiteDashboardState extends State<SiteDashboard> {
       if (_filters.maxVolume != null && (cargo.volumeM3 ?? double.infinity) > _filters.maxVolume!) return false;
 
       // Price & Payment
-      if (_filters.minPrice != null && (cargo.price ?? 0) < _filters.minPrice!) return false;
-      if (_filters.maxPrice != null && (cargo.price ?? double.infinity) > _filters.maxPrice!) return false;
-      if (_filters.currency != null && cargo.currency != _filters.currency) return false;
+      if (_filters.priceNegotiable) {
+        if (cargo.price != null && cargo.price! > 0) return false;
+      } else {
+        if (_filters.minPrice != null && (cargo.price ?? 0) < _filters.minPrice!) return false;
+        if (_filters.maxPrice != null && (cargo.price ?? double.infinity) > _filters.maxPrice!) return false;
+        if (_filters.currency != null && cargo.currency != _filters.currency) return false;
+      }
 
       // Badges & Readiness
       if (_filters.isUrgent && !cargo.isUrgent) return false;
@@ -926,7 +946,7 @@ String _sectionShortTitle(SiteSection section) {
     case SiteSection.users:
       return 'Люди';
     case SiteSection.favorites:
-      return 'Звезды';
+      return 'Отмеченные';
     case SiteSection.activity:
       return 'История';
     case SiteSection.findTransport:
@@ -1043,7 +1063,10 @@ class _PlaceholderSection extends StatelessWidget {
               label: 'Вернуться в кабинет',
               onPressed: () {
                 final state = context.findAncestorStateOfType<_SiteDashboardState>();
-                state?.setState(() => state._section = SiteSection.overview);
+                if (state != null) {
+                  // ignore: invalid_use_of_protected_member
+                  state.setState(() => state._section = SiteSection.overview);
+                }
               },
             ),
           ],

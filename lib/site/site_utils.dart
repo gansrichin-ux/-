@@ -40,6 +40,8 @@ class CargoFilters {
   final bool isHumanitarian;
   final bool hasPhoto;
   final bool? isReady;
+  final bool isTwoWaySearch;
+  final bool priceNegotiable;
   final DateTime? loadingDate;
 
   const CargoFilters({
@@ -62,6 +64,8 @@ class CargoFilters {
     this.isHumanitarian = false,
     this.hasPhoto = false,
     this.isReady,
+    this.isTwoWaySearch = false,
+    this.priceNegotiable = false,
     this.loadingDate,
   });
 
@@ -87,6 +91,8 @@ class CargoFilters {
       isHumanitarian ||
       hasPhoto ||
       isReady != null ||
+      isTwoWaySearch ||
+      priceNegotiable ||
       loadingDate != null;
 
   CargoFilters copyWith({
@@ -109,6 +115,8 @@ class CargoFilters {
     bool? isHumanitarian,
     bool? hasPhoto,
     bool? isReady,
+    bool? isTwoWaySearch,
+    bool? priceNegotiable,
     DateTime? loadingDate,
     bool clearMinWeight = false,
     bool clearMaxWeight = false,
@@ -142,6 +150,8 @@ class CargoFilters {
       isHumanitarian: isHumanitarian ?? this.isHumanitarian,
       hasPhoto: hasPhoto ?? this.hasPhoto,
       isReady: clearIsReady ? null : isReady ?? this.isReady,
+      isTwoWaySearch: isTwoWaySearch ?? this.isTwoWaySearch,
+      priceNegotiable: priceNegotiable ?? this.priceNegotiable,
       loadingDate: clearLoadingDate ? null : loadingDate ?? this.loadingDate,
     );
   }

@@ -103,6 +103,7 @@ class RouteBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Row(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -110,31 +111,28 @@ class RouteBadge extends StatelessWidget {
         Flexible(
           child: Text(
             from,
-            style: AppTextStyles.label.copyWith(
-              fontSize: fontSize,
-              fontWeight: FontWeight.w700,
+            style: AppTextStyles.titleMedium.copyWith(
+              fontSize: fontSize + 4,
+              fontWeight: FontWeight.w900,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6.0),
-          child: Text(
-            '·',
-            style: TextStyle(
-              fontSize: fontSize + 2,
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
-              fontWeight: FontWeight.w900,
-            ),
+          padding: const EdgeInsets.symmetric(horizontal: 10.0),
+          child: Icon(
+            Icons.arrow_forward_rounded,
+            size: fontSize + 2,
+            color: colors.primary.withOpacity(0.5),
           ),
         ),
         Flexible(
           child: Text(
             to,
-            style: AppTextStyles.label.copyWith(
-              fontSize: fontSize,
-              fontWeight: FontWeight.w700,
+            style: AppTextStyles.titleMedium.copyWith(
+              fontSize: fontSize + 4,
+              fontWeight: FontWeight.w900,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,

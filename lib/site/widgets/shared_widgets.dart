@@ -59,12 +59,15 @@ class _StatusPill extends StatelessWidget {
 class _InfoChip extends StatelessWidget {
   final IconData icon;
   final String label;
+  final Color? color;
 
-  const _InfoChip({required this.icon, required this.label});
+  const _InfoChip({required this.icon, required this.label, this.color});
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final chipColor = color ?? colors.onSurfaceVariant;
+    
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
@@ -75,12 +78,12 @@ class _InfoChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 15, color: colors.onSurfaceVariant),
+          Icon(icon, size: 15, color: chipColor),
           const SizedBox(width: 6),
           Text(
             label,
             style: TextStyle(
-              color: colors.onSurfaceVariant,
+              color: chipColor,
               fontSize: 12,
               fontWeight: FontWeight.w800,
             ),

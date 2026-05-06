@@ -55,7 +55,7 @@ class _AddCargoDialogState extends State<AddCargoDialog> {
     }
   }
 
-  Future<void> _save() async {
+  Future<void> _save({required String status}) async {
     if (!_formKey.currentState!.validate() || _isSaving) return;
     setState(() => _isSaving = true);
 
@@ -66,7 +66,7 @@ class _AddCargoDialogState extends State<AddCargoDialog> {
         title: _title.text.trim(),
         from: _from.text.trim(),
         to: _to.text.trim(),
-        status: CargoStatus.published,
+        status: status,
         ownerId: widget.ownerId,
         description: _description.text.trim().isEmpty ? null : _description.text.trim(),
         weightKg: _parseDouble(_weight.text),
@@ -302,9 +302,16 @@ class _AddCargoDialogState extends State<AddCargoDialog> {
           ),
           const SizedBox(width: 12),
           AppButton(
-            label: _isSaving ? 'Сохранение...' : 'Опубликовать груз',
+            label: 'Сохранить черновик',
+            variant: AppButtonVariant.secondary,
             isLoading: _isSaving,
-            onPressed: _isSaving ? null : _save,
+            onPressed: _isSaving ? null : () => _save(status: CargoStatus.draft),
+          ),
+          const SizedBox(width: 12),
+          AppButton(
+            label: _isSaving ? 'Публикация...' : 'Опубликовать груз',
+            isLoading: _isSaving,
+            onPressed: _isSaving ? null : () => _save(status: CargoStatus.published),
           ),
         ],
       ),
@@ -353,6 +360,8 @@ class _AddCargoDialogState extends State<AddCargoDialog> {
       items: const [
         DropdownMenuItem(value: 'full', child: Text('Полная машина')),
         DropdownMenuItem(value: 'partial', child: Text('Догруз')),
+        DropdownMenuItem(value: 'reload_possible', child: Text('Возможен догруз')),
+        DropdownMenuItem(value: 'only_separate', child: Text('Только отдельная машина')),
       ],
       onChanged: (v) => setState(() => _shipmentType = v),
     );
@@ -402,12 +411,14 @@ class _AddCargoDialogState extends State<AddCargoDialog> {
             ),
           ],
         ),
-        CheckboxListTile(
+        AppDropdown<bool>(
+          label: 'Состояние груза',
           value: _isReady,
-          title: const Text('Готов к погрузке сейчас', style: TextStyle(fontSize: 14)),
-          dense: true,
-          contentPadding: EdgeInsets.zero,
-          onChanged: (v) => setState(() => _isReady = v!),
+          items: const [
+            DropdownMenuItem(value: true, child: Text('Готов')),
+            DropdownMenuItem(value: false, child: Text('Планируется')),
+          ],
+          onChanged: (v) => setState(() => _isReady = v ?? true),
         ),
       ],
     );
