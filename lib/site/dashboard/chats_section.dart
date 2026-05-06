@@ -300,14 +300,58 @@ class _DirectChatInputState extends State<_DirectChatInput> {
   Future<void> _sendText() async {
     final text = _controller.text.trim();
     if (text.isEmpty || _isSending) return;
+
+    final authUid = AuthRepository.instance.currentUser?.uid;
+    final senderUid = widget.user.uid;
+    final peerUid = widget.peer.uid;
+
+    if (authUid == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Вы не авторизованы')),
+      );
+      return;
+    }
+
+    if (senderUid.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ошибка профиля: пустой UID отправителя')),
+      );
+      return;
+    }
+
+    if (peerUid.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ошибка профиля: пустой UID собеседника')),
+      );
+      return;
+    }
+
+    if (authUid != senderUid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Ошибка авторизации: ваш ID ($authUid) не совпадает с отправителем ($senderUid)'),
+        ),
+      );
+      debugPrint('Auth UID mismatch: $authUid vs $senderUid');
+      return;
+    }
+
     setState(() => _isSending = true);
     try {
-      _controller.clear();
       await ChatRepository.instance.sendDirectMessage(
         sender: widget.user,
         peer: widget.peer,
         text: text,
       );
+      _controller.clear();
+    } catch (e, st) {
+      debugPrint('Failed to send text: $e\n$st');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Не удалось отправить сообщение: $e')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isSending = false);
     }
@@ -315,6 +359,15 @@ class _DirectChatInputState extends State<_DirectChatInput> {
 
   Future<void> _sendMedia() async {
     if (_isSending) return;
+
+    final authUid = AuthRepository.instance.currentUser?.uid;
+    if (authUid == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Вы не авторизованы')),
+      );
+      return;
+    }
+
     final media = await openFile(
       acceptedTypeGroups: const [
         XTypeGroup(
@@ -342,13 +395,20 @@ class _DirectChatInputState extends State<_DirectChatInput> {
     final text = _controller.text.trim();
     setState(() => _isSending = true);
     try {
-      _controller.clear();
       await ChatRepository.instance.sendDirectMessage(
         sender: widget.user,
         peer: widget.peer,
         text: text,
         media: media,
       );
+      _controller.clear();
+    } catch (e, st) {
+      debugPrint('Failed to send media: $e\n$st');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Не удалось отправить файл: $e')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isSending = false);
     }

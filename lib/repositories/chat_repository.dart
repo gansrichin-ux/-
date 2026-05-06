@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/message_model.dart';
 import '../models/user_model.dart';
+import 'auth_repository.dart';
 
 class ChatRepository {
   ChatRepository._();
@@ -72,6 +74,23 @@ class ChatRepository {
     final trimmed = text.trim();
     if (trimmed.isEmpty && media == null) return;
 
+    final authUid = AuthRepository.instance.currentUser?.uid;
+
+    // Diagnostics
+    assert(sender.uid.isNotEmpty, 'Sender UID must not be empty');
+    assert(peer.uid.isNotEmpty, 'Peer UID must not be empty');
+    assert(sender.uid != peer.uid, 'Cannot send message to self');
+    assert(authUid == sender.uid, 'Auth UID mismatch');
+
+    if (sender.uid.isEmpty || peer.uid.isEmpty) {
+      throw Exception(
+          'Ошибка: UID пользователя пуст (sender: ${sender.uid}, peer: ${peer.uid})');
+    }
+    if (authUid != sender.uid) {
+      throw Exception(
+          'Ошибка авторизации: текущий пользователь ($authUid) не совпадает с отправителем (${sender.uid})');
+    }
+
     final conversationId = directConversationId(sender.uid, peer.uid);
     String? mediaUrl;
     String? mediaType;
@@ -84,18 +103,24 @@ class ChatRepository {
       final storageRef = _storage.ref().child(
             'direct_chats/$conversationId/${DateTime.now().millisecondsSinceEpoch}_$mediaName',
           );
-      await storageRef.putData(
-        bytes,
-        SettableMetadata(
-          contentType: mediaType,
-          customMetadata: {
-            'senderId': sender.uid,
-            'peerId': peer.uid,
-            'conversationId': conversationId,
-          },
-        ),
-      );
-      mediaUrl = await storageRef.getDownloadURL();
+
+      try {
+        await storageRef.putData(
+          bytes,
+          SettableMetadata(
+            contentType: mediaType,
+            customMetadata: {
+              'senderId': sender.uid,
+              'peerId': peer.uid,
+              'conversationId': conversationId,
+            },
+          ),
+        );
+        mediaUrl = await storageRef.getDownloadURL();
+      } catch (e) {
+        debugPrint('FAILED to upload media: $e');
+        rethrow;
+      }
     }
 
     final displayText = trimmed.isNotEmpty ? trimmed : (mediaName ?? 'Медиа');
@@ -109,43 +134,60 @@ class ChatRepository {
       mediaName: mediaName,
     );
 
-    final batch = _firestore.batch();
     final conversationRef = _conversations.doc(conversationId);
     final messageRef = _directMessages(conversationId).doc();
 
-    batch.set(
-      conversationRef,
-      {
-        'participants': [sender.uid, peer.uid],
-        'participantNames': {
-          sender.uid: sender.displayName,
-          peer.uid: peer.displayName,
+    // 1. Update/Create Conversation
+    try {
+      await conversationRef.set(
+        {
+          'participants': [sender.uid, peer.uid],
+          'participantNames': {
+            sender.uid: sender.displayName,
+            peer.uid: peer.displayName,
+          },
+          'participantUsernames': {
+            sender.uid: sender.displayUsername,
+            peer.uid: peer.displayUsername,
+          },
+          'lastMessage': displayText,
+          'lastSenderId': sender.uid,
+          'updatedAt': FieldValue.serverTimestamp(),
         },
-        'participantUsernames': {
-          sender.uid: sender.displayUsername,
-          peer.uid: peer.displayUsername,
-        },
-        'lastMessage': displayText,
-        'lastSenderId': sender.uid,
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
-    batch.set(messageRef, message.toMap());
-    // Use a stable document ID so each new message updates the same notification
-    // instead of creating thousands of duplicate notification documents.
-    final notifId = 'chat_${conversationId}_${peer.uid}';
-    batch.set(_firestore.collection('siteNotifications').doc(notifId), {
-      'userId': peer.uid,
-      'title': 'Новое сообщение',
-      'body': '${sender.displayName}: $displayText',
-      'type': 'chat',
-      'relatedId': conversationId,
-      'isRead': false,
-      'createdAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+        SetOptions(merge: true),
+      );
+    } catch (e) {
+      debugPrint('FAILED to update conversation $conversationId: $e');
+      rethrow;
+    }
 
-    await batch.commit();
+    // 2. Add Message
+    try {
+      final messageData = message.toMap();
+      // Ensure senderId is exactly sender.uid
+      messageData['senderId'] = sender.uid;
+      await messageRef.set(messageData);
+    } catch (e) {
+      debugPrint('FAILED to add message to $conversationId: $e');
+      rethrow;
+    }
+
+    // 3. Update/Create Site Notification
+    try {
+      final notifId = 'chat_${conversationId}_${peer.uid}';
+      await _firestore.collection('siteNotifications').doc(notifId).set({
+        'userId': peer.uid,
+        'title': 'Новое сообщение',
+        'body': '${sender.displayName}: $displayText',
+        'type': 'chat',
+        'relatedId': conversationId,
+        'isRead': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('FAILED to create site notification: $e');
+      // We don't rethrow here because the message was already sent
+    }
   }
 
   String _safeFileName(String value) {
