@@ -57,3 +57,9 @@ fix_encoding.dart
 replace.dart
 implementation_plan.md
 functions/.env
+
+# IDE/build temp files
+.vs/
+build_error.txt
+build_output.txt
+build_output2.txt
