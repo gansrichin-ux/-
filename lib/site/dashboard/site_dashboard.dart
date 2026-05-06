@@ -98,55 +98,15 @@ class _SiteDashboardState extends State<SiteDashboard> {
                     final applications = applicationSnapshot.data ??
                         const <CargoApplicationModel>[];
 
-                    return Scaffold(
+                    return AppResponsiveScaffold(
                       appBar: isWide
                           ? null
                           : AppBar(
                               title: const Text('Logist App Site'),
                               actions: _topActions(users, cargos),
                             ),
-                      body: Row(
-                        children: [
-                          if (isWide) _buildRail(context),
-                          Expanded(
-                            child: Column(
-                              children: [
-                                if (isWide)
-                                  _buildTopBar(
-                                    context,
-                                    cargoSnapshot,
-                                    users,
-                                    cargos,
-                                  ),
-                                Expanded(
-                                  child: cargoSnapshot.connectionState ==
-                                              ConnectionState.waiting &&
-                                          !cargoSnapshot.hasData
-                                      ? const Center(
-                                          child: CircularProgressIndicator(),
-                                        )
-                                      : cargoError != null
-                                          ? Center(
-                                              child: _StatePanel(
-                                                icon: Icons.cloud_off_rounded,
-                                                title: 'Данные недоступны',
-                                                message: cargoError.toString(),
-                                              ),
-                                            )
-                                          : _buildSection(
-                                              cargos,
-                                              drivers,
-                                              users,
-                                              favoriteCargoIds,
-                                              applications,
-                                            ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      bottomNavigationBar: isWide ? null : _buildBottomBar(),
+                      sidebar: _buildRail(context),
+                      bottomNavigation: _buildBottomBar(),
                       floatingActionButton: !_canCreateCargo
                           ? null
                           : FloatingActionButton.extended(
@@ -154,6 +114,40 @@ class _SiteDashboardState extends State<SiteDashboard> {
                               icon: const Icon(Icons.add_rounded),
                               label: const Text('Груз'),
                             ),
+                      body: Column(
+                        children: [
+                          if (isWide)
+                            _buildTopBar(
+                              context,
+                              cargoSnapshot,
+                              users,
+                              cargos,
+                            ),
+                          Expanded(
+                            child: cargoSnapshot.connectionState ==
+                                        ConnectionState.waiting &&
+                                    !cargoSnapshot.hasData
+                                ? const Center(
+                                    child: CircularProgressIndicator(),
+                                  )
+                                : cargoError != null
+                                    ? Center(
+                                        child: _StatePanel(
+                                          icon: Icons.cloud_off_rounded,
+                                          title: 'Данные недоступны',
+                                          message: cargoError.toString(),
+                                        ),
+                                      )
+                                    : _buildSection(
+                                        cargos,
+                                        drivers,
+                                        users,
+                                        favoriteCargoIds,
+                                        applications,
+                                      ),
+                          ),
+                        ],
+                      ),
                     );
                   },
                 );
@@ -352,6 +346,22 @@ class _SiteDashboardState extends State<SiteDashboard> {
           drivers: drivers,
           user: widget.user,
           onOpenCargo: () => setState(() => _section = SiteSection.myCargos),
+          onOpenMyCargosWithStatus: (status) {
+            setState(() {
+              _section = SiteSection.myCargos;
+              _status = status;
+              _filters = CargoFilters.empty;
+              _query = '';
+            });
+          },
+          onOpenMyCargosActive: () {
+            setState(() {
+              _section = SiteSection.myCargos;
+              _status = null;
+              _filters = const CargoFilters(onlyActive: true);
+              _query = '';
+            });
+          },
         );
       case SiteSection.myCargos:
         final personalCargos = _filteredCargos(_personalCargos(cargos));
@@ -365,7 +375,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
           filters: _filters,
           title: 'Мои актуальные грузы',
           emptyTitle: 'У вас нет актуальных грузов',
-          emptyMessage: widget.user.isDriver
+          emptyMessage: widget.user.canApplyToCargo
               ? 'Назначенные заявки появятся здесь.'
               : 'Для добавления груза нажмите плюс рядом с пунктом меню.',
           onQueryChanged: (value) => setState(() => _query = value),
@@ -570,16 +580,15 @@ class _SiteDashboardState extends State<SiteDashboard> {
   }
 
   bool get _canCreateCargo =>
-      !widget.user.isDriver &&
+      widget.user.canCreateCargo &&
       (_section == SiteSection.myCargos || _section == SiteSection.cargos);
 
   List<CargoModel> _personalCargos(List<CargoModel> cargos) {
-    if (widget.user.isDriver) {
-      return cargos
-          .where((cargo) => cargo.driverId == widget.user.uid)
-          .toList();
-    }
-    return cargos.where((cargo) => cargo.ownerId == widget.user.uid).toList();
+    return cargos.where((cargo) {
+      final isMyDriverCargo = widget.user.canApplyToCargo && cargo.driverId == widget.user.uid;
+      final isMyOwnerCargo = widget.user.canCreateCargo && cargo.ownerId == widget.user.uid;
+      return isMyDriverCargo || isMyOwnerCargo;
+    }).toList();
   }
 
   List<CargoModel> _filteredCargos(List<CargoModel> cargos) {
@@ -590,6 +599,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
     return cargos.where((cargo) {
       if (_status != null && cargo.status != _status) return false;
       if (_filters.onlyWithoutDriver && cargo.driverId != null) return false;
+      if (_filters.onlyActive && !cargo.isActive) return false;
       if (from.isNotEmpty && !cargo.from.toLowerCase().contains(from)) {
         return false;
       }
@@ -654,16 +664,10 @@ class _SiteDashboardState extends State<SiteDashboard> {
 
   Future<void> _assignDriver(CargoModel cargo, UserModel driver) async {
     try {
-      await CargoRepository.instance.assignDriver(
-        cargoId: cargo.id,
-        driverId: driver.uid,
-        driverName: driver.displayName,
-      );
-      await SiteWorkflowRepository.instance.updateCargoStatus(
-        cargo: cargo.copyWith(
-            driverId: driver.uid, driverName: driver.displayName),
+      await CargoWorkflowService.instance.assignDriver(
+        cargo: cargo,
+        driver: driver,
         actor: widget.user,
-        status: cargoStatusInWork,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -679,10 +683,10 @@ class _SiteDashboardState extends State<SiteDashboard> {
 
   Future<void> _changeStatus(CargoModel cargo, String status) async {
     try {
-      await SiteWorkflowRepository.instance.updateCargoStatus(
+      await CargoWorkflowService.instance.updateStatus(
         cargo: cargo,
         actor: widget.user,
-        status: status,
+        newStatus: status,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(

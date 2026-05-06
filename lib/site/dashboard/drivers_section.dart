@@ -48,20 +48,19 @@ class DriversSection extends StatelessWidget {
             .where((cargo) => cargo.status == 'В пути')
             .length;
         final available = cargos
-            .where((cargo) => cargo.status == 'Новый' && cargo.driverId == null)
+            .where((cargo) => cargo.status == CargoStatus.published && cargo.driverId == null)
             .toList();
 
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final compact = constraints.maxWidth < 640;
-                final main = Row(
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
+        return AppCard(
+          padding: const EdgeInsets.all(20),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 640;
+              final main = Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
                       decoration: BoxDecoration(
                         color: Theme.of(
                           context,
@@ -111,11 +110,11 @@ class DriversSection extends StatelessWidget {
                     _DriverCounter(label: 'Всего', value: assigned.length),
                     const SizedBox(width: 10),
                     if (available.isNotEmpty)
-                      FilledButton.icon(
+                      AppButton(
                         onPressed: () =>
                             _showAssignDialog(context, driver, available),
-                        icon: const Icon(Icons.assignment_rounded),
-                        label: const Text('Груз'),
+                        icon: Icons.assignment_rounded,
+                        label: 'Груз',
                       ),
                   ],
                 );
@@ -135,7 +134,6 @@ class DriversSection extends StatelessWidget {
                 );
               },
             ),
-          ),
         );
       },
     );

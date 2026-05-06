@@ -77,7 +77,7 @@ class CargosSection extends StatelessWidget {
           onQueryChanged: onQueryChanged,
           onStatusChanged: onStatusChanged,
           onFiltersChanged: onFiltersChanged,
-          onAddCargo: user.isDriver || !showAddButton ? null : onAddCargo,
+          onAddCargo: !user.canCreateCargo || !showAddButton ? null : onAddCargo,
         ),
         if (title != null)
           _CargoSectionHeader(
@@ -96,9 +96,9 @@ class CargosSection extends StatelessWidget {
                     message: allCargos.isEmpty
                         ? (emptyMessage ?? 'Создайте первую заявку.')
                         : 'Измените поиск или статус.',
-                    actionLabel: user.isDriver ? null : 'Новый груз',
+                    actionLabel: user.canCreateCargo ? 'Новый груз' : null,
                     onAction:
-                        user.isDriver || !showAddButton ? null : onAddCargo,
+                        !user.canCreateCargo || !showAddButton ? null : onAddCargo,
                   ),
                 )
               : ListView.separated(
@@ -292,9 +292,9 @@ class _StatusFilter extends StatelessWidget {
       ),
       items: [
         const DropdownMenuItem<String>(value: 'Все', child: Text('Все')),
-        ...cargoStatuses.map(
+        ...CargoStatus.values.map(
           (status) =>
-              DropdownMenuItem<String>(value: status, child: Text(status)),
+              DropdownMenuItem<String>(value: status, child: Text(CargoStatus.getDisplayStatus(status))),
         ),
       ],
       onChanged: (value) => onChanged(value == 'Все' ? null : value),
@@ -324,7 +324,7 @@ class _StatusChipsState extends State<_StatusChips> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final options = <String?>[null, ...cargoStatuses];
+    final options = <String?>[null, ...CargoStatus.values];
 
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 520),
@@ -345,7 +345,7 @@ class _StatusChipsState extends State<_StatusChips> {
                   avatar: selected
                       ? Icon(Icons.check_rounded, size: 16, color: colors.primary)
                       : null,
-                  label: Text(label),
+                  label: Text(value == null ? 'Все' : CargoStatus.getDisplayStatus(value)),
                   selected: selected,
                   showCheckmark: false,
                   onSelected: (_) => widget.onChanged(value),
@@ -506,6 +506,17 @@ class _AdvancedCargoFilters extends StatelessWidget {
                       style: TextStyle(fontWeight: FontWeight.w800),
                     ),
                   ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: filters.onlyActive,
+                    onChanged: (value) => onChanged(
+                      filters.copyWith(onlyActive: value),
+                    ),
+                    title: const Text(
+                      'Только активные грузы',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
                 ],
               ),
             );
@@ -554,138 +565,116 @@ class CargoWebCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final statusColor = _statusColor(cargo.status);
     final compact = MediaQuery.sizeOf(context).width < 760;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(Icons.local_shipping_rounded, color: statusColor),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        cargo.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w900),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '${cargo.from} -> ${cargo.to}',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: colors.onSurfaceVariant,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                IconButton(
-                  tooltip: isFavorite
-                      ? 'Убрать из отмеченных'
-                      : 'Добавить в отмеченные',
-                  onPressed: () => onToggleFavorite(cargo, !isFavorite),
-                  icon: Icon(
-                    isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
-                    color: isFavorite ? colors.tertiary : colors.onSurface,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                _StatusPill(label: cargo.status, color: statusColor),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                if (cargo.createdAt != null)
-                  _InfoChip(
-                    icon: Icons.calendar_today_rounded,
-                    label: DateFormat('dd.MM.yyyy').format(cargo.createdAt!),
-                  ),
-                if (cargo.loadingDate != null)
-                  _InfoChip(
-                    icon: Icons.event_available_rounded,
-                    label:
-                        'Погрузка ${DateFormat('dd.MM.yyyy').format(cargo.loadingDate!)}',
-                  ),
-                if (cargo.weightKg != null)
-                  _InfoChip(
-                    icon: Icons.scale_rounded,
-                    label: '${cargo.weightKg!.toStringAsFixed(1)} т',
-                  ),
-                if (cargo.volumeM3 != null)
-                  _InfoChip(
-                    icon: Icons.inventory_2_outlined,
-                    label: '${cargo.volumeM3!.toStringAsFixed(1)} м3',
-                  ),
-                if (cargo.bodyType?.isNotEmpty == true)
-                  _InfoChip(
-                    icon: Icons.local_shipping_outlined,
-                    label: cargo.bodyType!,
-                  ),
-                if (cargo.distanceKm != null)
-                  _InfoChip(
-                    icon: Icons.route_rounded,
-                    label: '${cargo.distanceKm!.toStringAsFixed(0)} км',
-                  ),
-                if (cargo.price != null)
-                  _InfoChip(
-                    icon: Icons.payments_rounded,
-                    label: _formatMoney(cargo.price!),
-                  ),
-                if (cargo.driverName?.isNotEmpty == true)
-                  _InfoChip(
-                    icon: Icons.badge_rounded,
-                    label: cargo.driverName!,
-                  ),
-              ],
-            ),
-            if (cargo.description?.isNotEmpty == true) ...[
-              const SizedBox(height: 12),
-              Text(
-                cargo.description!,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: colors.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
+    return AppCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      cargo.title,
+                      style: AppTextStyles.titleMedium,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+                    RouteBadge(from: cargo.from, to: cargo.to),
+                  ],
                 ),
               ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  CargoStatusBadge(status: cargo.status),
+                  const SizedBox(height: 8),
+                  IconButton(
+                    tooltip: isFavorite
+                        ? 'Убрать из отмеченных'
+                        : 'Добавить в отмеченные',
+                    onPressed: () => onToggleFavorite(cargo, !isFavorite),
+                    icon: Icon(
+                      isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
+                      color: isFavorite ? colors.tertiary : colors.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
             ],
-            const SizedBox(height: 14),
-            compact
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: _actions(context),
-                  )
-                : Row(children: [const Spacer(), ..._actions(context)]),
+          ),
+          const SizedBox(height: 16),
+          const Divider(),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (cargo.createdAt != null)
+                _InfoChip(
+                  icon: Icons.calendar_today_rounded,
+                  label: DateFormat('dd.MM.yyyy').format(cargo.createdAt!),
+                ),
+              if (cargo.loadingDate != null)
+                _InfoChip(
+                  icon: Icons.event_available_rounded,
+                  label:
+                      'Погрузка ${DateFormat('dd.MM.yyyy').format(cargo.loadingDate!)}',
+                ),
+              if (cargo.weightKg != null)
+                _InfoChip(
+                  icon: Icons.scale_rounded,
+                  label: '${cargo.weightKg!.toStringAsFixed(1)} т',
+                ),
+              if (cargo.volumeM3 != null)
+                _InfoChip(
+                  icon: Icons.inventory_2_outlined,
+                  label: '${cargo.volumeM3!.toStringAsFixed(1)} м3',
+                ),
+              if (cargo.bodyType?.isNotEmpty == true)
+                TruckBodyTypeBadge(bodyType: cargo.bodyType!),
+              if (cargo.distanceKm != null)
+                _InfoChip(
+                  icon: Icons.route_rounded,
+                  label: '${cargo.distanceKm!.toStringAsFixed(0)} км',
+                ),
+              if (cargo.price != null) PriceBadge(price: cargo.price!),
+              if (cargo.driverName?.isNotEmpty == true)
+                _InfoChip(
+                  icon: Icons.badge_rounded,
+                  label: cargo.driverName!,
+                ),
+            ],
+          ),
+          if (cargo.description?.isNotEmpty == true) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: colors.surfaceVariant.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                cargo.description!,
+                style: AppTextStyles.bodyMedium,
+              ),
+            ),
           ],
-        ),
+          const SizedBox(height: 20),
+          compact
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: _actions(context),
+                )
+              : Row(children: [const Spacer(), ..._actions(context)]),
+        ],
       ),
     );
   }
@@ -699,46 +688,48 @@ class CargoWebCard extends StatelessWidget {
             );
     final pendingCount = applications.where((item) => item.isPending).length;
     final widgets = <Widget>[
-      OutlinedButton.icon(
+      AppButton(
+        label: 'Чат',
+        icon: Icons.chat_bubble_outline_rounded,
+        variant: AppButtonVariant.secondary,
         onPressed: () => onOpenChat(cargo),
-        icon: const Icon(Icons.chat_bubble_outline_rounded),
-        label: const Text('Чат'),
       ),
       const SizedBox(width: 10, height: 10),
-      OutlinedButton.icon(
+      AppButton(
+        label: 'Документы',
+        icon: Icons.attach_file_rounded,
+        variant: AppButtonVariant.secondary,
         onPressed: () => _showDocumentsDialog(context),
-        icon: const Icon(Icons.attach_file_rounded),
-        label: const Text('Документы'),
       ),
     ];
 
-    if (user.isDriver && cargo.ownerId != user.uid && cargo.driverId == null) {
+    if (user.canApplyToCargo && cargo.ownerId != user.uid && cargo.driverId == null) {
       widgets.add(const SizedBox(width: 10, height: 10));
       if (myApplication == null) {
         widgets.add(
-          FilledButton.icon(
+          AppButton(
+            label: 'Откликнуться',
+            icon: Icons.how_to_reg_rounded,
             onPressed: () => _showApplyDialog(context),
-            icon: const Icon(Icons.how_to_reg_rounded),
-            label: const Text('Откликнуться'),
           ),
         );
       } else {
         widgets.add(
-          _StatusPill(
-            label: _applicationStatusLabel(myApplication.status),
-            color: _applicationStatusColor(myApplication.status),
+          CargoStatusBadge(
+            status: _applicationStatusLabel(myApplication.status),
           ),
         );
       }
     }
 
-    if (!user.isDriver && cargo.ownerId == user.uid && pendingCount > 0) {
+    if (user.canCreateCargo && cargo.ownerId == user.uid && pendingCount > 0) {
       widgets.addAll([
         const SizedBox(width: 10, height: 10),
-        FilledButton.tonalIcon(
+        AppButton(
+          label: 'Отклики ($pendingCount)',
+          icon: Icons.how_to_reg_rounded,
+          variant: AppButtonVariant.primary,
           onPressed: () => _showApplicationsDialog(context),
-          icon: const Icon(Icons.how_to_reg_rounded),
-          label: Text('Отклики ($pendingCount)'),
         ),
       ]);
     }
@@ -746,21 +737,23 @@ class CargoWebCard extends StatelessWidget {
     if (canManage) {
       widgets.addAll([
         const SizedBox(width: 10, height: 10),
-        OutlinedButton.icon(
+        AppButton(
+          label: 'Статус',
+          icon: Icons.swap_horiz_rounded,
+          variant: AppButtonVariant.outlined,
           onPressed: () => _showStatusDialog(context),
-          icon: const Icon(Icons.swap_horiz_rounded),
-          label: const Text('Статус'),
         ),
       ]);
     }
 
-    if (!user.isDriver && drivers.isNotEmpty && cargo.ownerId == user.uid) {
+    if (user.canCreateCargo && drivers.isNotEmpty && cargo.ownerId == user.uid) {
       widgets.addAll([
         const SizedBox(width: 10, height: 10),
-        FilledButton.icon(
+        AppButton(
+          label: 'Назначить',
+          icon: Icons.assignment_ind_rounded,
+          variant: AppButtonVariant.primary,
           onPressed: () => _showDriverDialog(context),
-          icon: const Icon(Icons.assignment_ind_rounded),
-          label: const Text('Назначить'),
         ),
       ]);
     }
@@ -800,7 +793,7 @@ class CargoWebCard extends StatelessWidget {
       context: context,
       builder: (context) => SimpleDialog(
         title: const Text('Изменить статус'),
-        children: cargoStatuses
+        children: CargoStatus.values
             .map(
               (status) => ListTile(
                 leading: Icon(
@@ -808,7 +801,7 @@ class CargoWebCard extends StatelessWidget {
                       ? Icons.radio_button_checked_rounded
                       : Icons.radio_button_unchecked_rounded,
                 ),
-                title: Text(status),
+                title: Text(CargoStatus.getDisplayStatus(status)),
                 onTap: () => Navigator.pop(context, status),
               ),
             )

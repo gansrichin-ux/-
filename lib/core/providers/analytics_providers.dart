@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/cargo_model.dart';
 import '../../models/client_model.dart';
+import '../../core/config/cargo_statuses.dart';
 import 'cargo_providers.dart';
 import 'client_providers.dart';
 
@@ -135,7 +136,7 @@ Map<String, dynamic> _calculateCargoStats(List<CargoModel> cargos) {
   final totalCargos = cargos.length;
   final deliveredCargos = cargos.where((c) => c.status == 'Доставлен').length;
   final inTransitCargos = cargos.where((c) => c.status == 'В пути').length;
-  final newCargos = cargos.where((c) => c.status == 'Новый').length;
+  final newCargos = cargos.where((c) => c.status == CargoStatus.published).length;
   final totalRevenue = cargos.fold<double>(
     0.0,
     (sum, cargo) => sum + 10000.0,

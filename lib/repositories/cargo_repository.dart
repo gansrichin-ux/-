@@ -1,8 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import '../core/config/cargo_statuses.dart';
 import '../core/services/cargo_photo_uploader.dart';
 import '../models/cargo_model.dart';
-
+import '../models/user_model.dart';
 class CargoRepository {
   CargoRepository._();
   static final CargoRepository instance = CargoRepository._();
@@ -57,7 +58,7 @@ class CargoRepository {
     return query.limit(80).snapshots().map((snap) {
       final cargos = snap.docs
           .map(CargoModel.fromFirestore)
-          .where((cargo) => cargo.status == 'Новый')
+          .where((cargo) => cargo.status == CargoStatus.published)
           .toList();
       cargos.sort((a, b) {
         final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
@@ -78,7 +79,7 @@ class CargoRepository {
     return query.limit(80).snapshots().map((snap) {
       final cargos = snap.docs
           .map(CargoModel.fromFirestore)
-          .where((cargo) => cargo.status == 'Новый' && cargo.driverId == null)
+          .where((cargo) => cargo.status == CargoStatus.published && cargo.driverId == null)
           .toList();
       cargos.sort((a, b) {
         final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
@@ -133,6 +134,29 @@ class CargoRepository {
   ) async {
     final ref = _storage.ref().child('cargos/$cargoId/$fileName');
     return uploadCargoPhoto(ref, file);
+  }
+
+  Stream<List<CargoModel>> watchActiveCargosForUser(UserModel user) {
+    Query<Map<String, dynamic>> query = _cargos;
+
+    if (user.role == 'driver') {
+      query = query.where('driverId', isEqualTo: user.uid);
+    } else {
+      query = query.where('ownerId', isEqualTo: user.uid);
+    }
+
+    return query.snapshots().map((snap) {
+      final cargos = snap.docs
+          .map(CargoModel.fromFirestore)
+          .where((cargo) => cargo.isActive)
+          .toList();
+      cargos.sort((a, b) {
+        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return bDate.compareTo(aDate);
+      });
+      return cargos;
+    });
   }
 
   Future<void> addPhotoUrl(String cargoId, String photoUrl) async {

@@ -95,12 +95,12 @@ class _TenderSectionState extends State<TenderSection> {
               ),
             ),
           ),
-          if (!widget.user.isDriver) ...[
+          if (widget.user.canCreateCargo) ...[
             const SizedBox(width: 12),
-            FilledButton.icon(
+            AppButton(
               onPressed: () => _showCreateDialog(ctx),
-              icon: const Icon(Icons.add_rounded, size: 18),
-              label: const Text('Тендер'),
+              icon: Icons.add_rounded,
+              label: 'Тендер',
             ),
           ],
         ],
@@ -118,7 +118,7 @@ class _TenderSectionState extends State<TenderSection> {
           Text('Тендеров пока нет', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           Text(
-            widget.user.isDriver ? 'Когда логисты создадут тендеры, они появятся здесь.' : 'Создайте первый тендер — нажмите кнопку выше.',
+            widget.user.canCreateCargo ? 'Создайте первый тендер — нажмите кнопку выше.' : 'Когда логисты создадут тендеры, они появятся здесь.',
             style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
             textAlign: TextAlign.center,
           ),
@@ -184,51 +184,68 @@ class _TenderCard extends StatelessWidget {
     final daysLeft = tender.deadlineAt.difference(DateTime.now()).inDays;
     final isOwner = tender.ownerId == currentUser.uid;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+    return AppCard(
+      padding: EdgeInsets.zero,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
                   Expanded(
-                    child: Text(tender.title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    child: Text(
+                      tender.title,
+                      style: AppTextStyles.titleMedium,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(color: statusColor.withOpacity(0.12), borderRadius: BorderRadius.circular(999), border: Border.all(color: statusColor.withOpacity(0.3))),
-                    child: Text(statusLabel, style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.w700)),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: statusColor.withOpacity(0.3)),
+                    ),
+                    child: Text(
+                      statusLabel,
+                      style: TextStyle(
+                        color: statusColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              Row(
+              const SizedBox(height: 12),
+              RouteBadge(from: tender.from, to: tender.to),
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
                 children: [
-                  Icon(Icons.route_rounded, size: 15, color: colors.onSurfaceVariant),
-                  const SizedBox(width: 4),
-                  Expanded(child: Text('${tender.from} → ${tender.to}', style: TextStyle(color: colors.onSurfaceVariant, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  _InfoBadge(icon: Icons.attach_money_rounded, text: 'от ${tender.startingPrice.toStringAsFixed(0)} ${tender.currency}'),
-                  const SizedBox(width: 8),
+                  PriceBadge(price: tender.startingPrice),
                   _InfoBadge(icon: Icons.how_to_reg_rounded, text: '${tender.bidCount} ставок'),
-                  const SizedBox(width: 8),
                   if (tender.isActive)
                     _InfoBadge(
                       icon: Icons.timer_outlined,
                       text: daysLeft > 0 ? '$daysLeft дн.' : 'Истекает сегодня',
                       color: daysLeft <= 1 ? colors.error : null,
                     ),
-                  if (isOwner) ...[const SizedBox(width: 8), _InfoBadge(icon: Icons.person_rounded, text: 'Мой тендер', color: colors.primary)],
+                  if (isOwner)
+                    _InfoBadge(
+                      icon: Icons.person_rounded,
+                      text: 'Мой тендер',
+                      color: colors.primary,
+                    ),
                 ],
               ),
             ],

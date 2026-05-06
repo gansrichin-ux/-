@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/config/cargo_statuses.dart';
 import '../../repositories/cargo_repository.dart';
 import '../../repositories/auth_repository.dart';
 import '../../models/cargo_model.dart';
@@ -86,7 +87,7 @@ class _AddCargoScreenState extends State<AddCargoScreen> {
         title: _titleController.text.trim(),
         from: _fromController.text.trim(),
         to: _toController.text.trim(),
-        status: 'Новый',
+        status: CargoStatus.published,
         ownerId: ownerId,
         description: _descriptionController.text.trim().isEmpty
             ? null

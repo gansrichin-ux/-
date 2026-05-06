@@ -61,97 +61,107 @@ class _ChatsSectionState extends State<ChatsSection> {
       return _buildActiveChat(context, _selectedPeer!);
     }
 
-    return Row(
-      children: [
-        SizedBox(
-          width: isWide ? 340 : double.infinity,
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(color: Theme.of(context).dividerColor),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            width: isWide ? 340 : double.infinity,
+            child: AppCard(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(color: Theme.of(context).dividerColor),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          Icons.forum_rounded,
-                          color: Theme.of(context).colorScheme.primary,
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.forum_rounded,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Чаты между пользователями',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Чаты между пользователями',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 16,
+                        const SizedBox(height: 12),
+                        TextField(
+                          onChanged: (value) => setState(() => _query = value),
+                          decoration: const InputDecoration(
+                            hintText: 'Найти логиста или водителя',
+                            prefixIcon: Icon(Icons.search_rounded),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      onChanged: (value) => setState(() => _query = value),
-                      decoration: const InputDecoration(
-                        hintText: 'Найти логиста или водителя',
-                        prefixIcon: Icon(Icons.search_rounded),
-                      ),
+                  ),
+                  Expanded(
+                    child: ListView.separated(
+                      itemCount: peers.length,
+                      separatorBuilder: (context, index) =>
+                          Divider(height: 1, color: Theme.of(context).dividerColor),
+                      itemBuilder: (context, index) {
+                        final peer = peers[index];
+                        final isSelected = _selectedPeer?.uid == peer.uid;
+                        return ListTile(
+                          selected: isSelected,
+                          leading: _ChatAvatar(user: peer),
+                          title: Text(
+                            peer.displayName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w900),
+                          ),
+                          subtitle: Text(
+                            '${peer.displayUsername} · ${peer.displayRole}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: _RatingStars(
+                            value: peer.rating.round().clamp(0, 5).toInt(),
+                          ),
+                          onTap: () => setState(() => _selectedPeer = peer),
+                        );
+                      },
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              Expanded(
-                child: ListView.separated(
-                  itemCount: peers.length,
-                  separatorBuilder: (context, index) =>
-                      Divider(height: 1, color: Theme.of(context).dividerColor),
-                  itemBuilder: (context, index) {
-                    final peer = peers[index];
-                    final isSelected = _selectedPeer?.uid == peer.uid;
-                    return ListTile(
-                      selected: isSelected,
-                      leading: _ChatAvatar(user: peer),
-                      title: Text(
-                        peer.displayName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w900),
-                      ),
-                      subtitle: Text(
-                        '${peer.displayUsername} · ${peer.displayRole}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      trailing: _RatingStars(
-                        value: peer.rating.round().clamp(0, 5).toInt(),
-                      ),
-                      onTap: () => setState(() => _selectedPeer = peer),
-                    );
-                  },
-                ),
+            ),
+          ),
+          if (isWide) ...[
+            const SizedBox(width: 24),
+            Expanded(
+              child: AppCard(
+                padding: EdgeInsets.zero,
+                child: _selectedPeer == null
+                    ? const Center(
+                        child: _StatePanel(
+                          icon: Icons.chat_outlined,
+                          title: 'Выберите пользователя',
+                          message: 'Откройте собеседника слева и начните диалог.',
+                        ),
+                      )
+                    : _buildActiveChat(context, _selectedPeer!),
               ),
-            ],
-          ),
-        ),
-        if (isWide) ...[
-          VerticalDivider(width: 1, color: Theme.of(context).dividerColor),
-          Expanded(
-            child: _selectedPeer == null
-                ? const Center(
-                    child: _StatePanel(
-                      icon: Icons.chat_outlined,
-                      title: 'Выберите пользователя',
-                      message: 'Откройте собеседника слева и начните диалог.',
-                    ),
-                  )
-                : _buildActiveChat(context, _selectedPeer!),
-          ),
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 

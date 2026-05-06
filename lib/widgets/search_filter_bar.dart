@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/providers/cargo_providers.dart';
+import '../core/config/cargo_statuses.dart';
 
 class SearchFilterBar extends ConsumerStatefulWidget {
   const SearchFilterBar({super.key});
@@ -36,10 +37,7 @@ class _SearchFilterBarState extends ConsumerState<SearchFilterBar> {
 
   final List<String> _statusOptions = [
     'Все',
-    'Новый',
-    'В пути',
-    'Доставлен',
-    'Отменен',
+    ...CargoStatus.values,
   ];
 
   final List<String> _bodyTypeOptions = [
@@ -505,7 +503,8 @@ class _SearchFilterBarState extends ConsumerState<SearchFilterBar> {
         isDense: true,
       ),
       items: options.map((option) {
-        return DropdownMenuItem(value: option, child: Text(option));
+        final display = option == 'Все' ? option : CargoStatus.getDisplayStatus(option);
+        return DropdownMenuItem(value: option, child: Text(display));
       }).toList(),
       onChanged: onChanged,
     );

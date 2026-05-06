@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../core/config/cargo_statuses.dart';
 
 class CargoModel {
   final String id;
@@ -23,6 +24,33 @@ class CargoModel {
   final double? widthM;
   final double? distanceKm;
   final double? price;
+  final bool isUrgent;
+  final String? paymentStatus;
+
+  bool get isDraft => status == CargoStatus.draft;
+  bool get isPublished => status == CargoStatus.published;
+  bool get hasApplications => status == CargoStatus.hasApplications;
+  bool get hasExecutor => status != CargoStatus.draft && status != CargoStatus.published && status != CargoStatus.hasApplications && status != CargoStatus.waitingConfirmation;
+  bool get isActive => const [
+        CargoStatus.published,
+        CargoStatus.hasApplications,
+        CargoStatus.executorSelected,
+        CargoStatus.waitingConfirmation,
+        CargoStatus.confirmed,
+        CargoStatus.waitingLoading,
+        CargoStatus.loading,
+        CargoStatus.loaded,
+        CargoStatus.inTransit,
+        CargoStatus.unloading,
+        CargoStatus.waitingDocuments,
+        CargoStatus.waitingPayment,
+        CargoStatus.dispute,
+      ].contains(status);
+  bool get isFinished => status == CargoStatus.delivered || status == CargoStatus.closed;
+  bool get isCancelled => status == CargoStatus.cancelled;
+  bool get isInDispute => status == CargoStatus.dispute;
+  bool get isClosed => status == CargoStatus.closed;
+  double get pricePerKm => (price != null && distanceKm != null && distanceKm! > 0) ? price! / distanceKm! : 0.0;
 
   const CargoModel({
     required this.id,
@@ -47,6 +75,8 @@ class CargoModel {
     this.widthM,
     this.distanceKm,
     this.price,
+    this.isUrgent = false,
+    this.paymentStatus,
   })  : assert(id.length > 0, 'Cargo id must not be empty'),
         assert(title.length > 0, 'Cargo title must not be empty'),
         assert(from.length > 0, 'Cargo origin must not be empty'),
@@ -59,12 +89,14 @@ class CargoModel {
 
   factory CargoModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    final rawStatus = data['status'] as String? ?? 'Новый';
+    
     return CargoModel(
       id: doc.id,
       title: data['title'] as String? ?? '',
       from: data['from'] as String? ?? '',
       to: data['to'] as String? ?? '',
-      status: data['status'] as String? ?? 'Новый',
+      status: CargoStatus.fromLegacy(rawStatus),
       driverId: data['driverId'] as String?,
       driverName: data['driverName'] as String?,
       ownerId: data['ownerId'] as String?,
@@ -82,6 +114,8 @@ class CargoModel {
       widthM: (data['widthM'] as num?)?.toDouble(),
       distanceKm: (data['distanceKm'] as num?)?.toDouble(),
       price: (data['price'] as num?)?.toDouble(),
+      isUrgent: data['isUrgent'] as bool? ?? false,
+      paymentStatus: data['paymentStatus'] as String?,
     );
   }
 
@@ -90,7 +124,7 @@ class CargoModel {
       'title': title,
       'from': from,
       'to': to,
-      'status': status,
+      'status': CargoStatus.toLegacy(status), // Maintain backward compatibility in DB
       if (driverId != null) 'driverId': driverId,
       if (driverName != null) 'driverName': driverName,
       if (ownerId != null) 'ownerId': ownerId,
@@ -108,6 +142,8 @@ class CargoModel {
       if (widthM != null) 'widthM': widthM,
       if (distanceKm != null) 'distanceKm': distanceKm,
       if (price != null) 'price': price,
+      'isUrgent': isUrgent,
+      if (paymentStatus != null) 'paymentStatus': paymentStatus,
     };
   }
 
@@ -132,6 +168,8 @@ class CargoModel {
     double? widthM,
     double? distanceKm,
     double? price,
+    bool? isUrgent,
+    String? paymentStatus,
   }) {
     return CargoModel(
       id: id,
@@ -156,6 +194,8 @@ class CargoModel {
       widthM: widthM ?? this.widthM,
       distanceKm: distanceKm ?? this.distanceKm,
       price: price ?? this.price,
+      isUrgent: isUrgent ?? this.isUrgent,
+      paymentStatus: paymentStatus ?? this.paymentStatus,
     );
   }
 
@@ -187,6 +227,8 @@ class CargoModel {
       widthM: (map['widthM'] as num?)?.toDouble(),
       distanceKm: (map['distanceKm'] as num?)?.toDouble(),
       price: (map['price'] as num?)?.toDouble(),
+      isUrgent: map['isUrgent'] as bool? ?? false,
+      paymentStatus: map['paymentStatus'] as String?,
     );
   }
 
@@ -214,6 +256,8 @@ class CargoModel {
       if (widthM != null) 'widthM': widthM,
       if (distanceKm != null) 'distanceKm': distanceKm,
       if (price != null) 'price': price,
+      'isUrgent': isUrgent,
+      if (paymentStatus != null) 'paymentStatus': paymentStatus,
     };
   }
 

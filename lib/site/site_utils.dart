@@ -6,56 +6,19 @@ class CargoStatsView {
   CargoStatsView(this.cargos);
 
   int get total => cargos.length;
-  int get newCount =>
-      cargos.where((cargo) => cargo.status == cargoStatusNew).length;
-  int get inWork =>
-      cargos.where((cargo) => cargo.status == cargoStatusInWork).length;
-  int get inTransit =>
-      cargos.where((cargo) => cargo.status == cargoStatusInTransit).length;
-  int get completed => cargos
-      .where((cargo) =>
-          cargo.status == cargoStatusDelivered ||
-          cargo.status == cargoStatusDeliveredLegacy)
-      .length;
-  int get closed => cargos
-      .where((cargo) =>
-          cargo.status == cargoStatusClosed ||
-          cargo.status == cargoStatusClosedLegacy)
-      .length;
-  int get cancelled => cargos
-      .where((cargo) =>
-          cargo.status == cargoStatusCancelled ||
-          cargo.status == cargoStatusCancelledLegacy)
-      .length;
-  int get active => newCount + inWork + inTransit;
-  int get unassigned => cargos
-      .where(
-          (cargo) => cargo.status == cargoStatusNew && cargo.driverId == null)
-      .length;
-  double get revenue =>
-      cargos.fold<double>(0, (sum, cargo) => sum + (cargo.price ?? 0));
-  double get distance =>
-      cargos.fold<double>(0, (sum, cargo) => sum + (cargo.distanceKm ?? 0));
+  int get active => cargos.where((cargo) => cargo.isActive).length;
+  int get inTransit => cargos.where((cargo) => cargo.status == CargoStatus.inTransit).length;
+  int get waitingConfirmation => cargos.where((cargo) => cargo.status == CargoStatus.waitingConfirmation).length;
+  int get waitingLoading => cargos.where((cargo) => cargo.status == CargoStatus.waitingLoading).length;
+  int get waitingPayment => cargos.where((cargo) => cargo.status == CargoStatus.waitingPayment).length;
+  int get inDispute => cargos.where((cargo) => cargo.status == CargoStatus.dispute).length;
+  int get closed => cargos.where((cargo) => cargo.status == CargoStatus.closed).length;
+  double get revenue => cargos.fold<double>(0, (sum, cargo) => sum + (cargo.price ?? 0));
+
+  int get newCount => cargos.where((cargo) => cargo.status == CargoStatus.published).length;
+  int get unassigned => cargos.where((cargo) => cargo.status == CargoStatus.published && cargo.driverId == null).length;
+  double get distance => cargos.fold<double>(0, (sum, cargo) => sum + (cargo.distanceKm ?? 0));
 }
-
-const cargoStatusNew = 'Новый';
-const cargoStatusInWork = 'В работе';
-const cargoStatusInTransit = 'В пути';
-const cargoStatusDelivered = 'Доставлено';
-const cargoStatusClosed = 'Закрыто';
-const cargoStatusCancelled = 'Отменено';
-const cargoStatusDeliveredLegacy = 'Доставлен';
-const cargoStatusClosedLegacy = 'Закрыт';
-const cargoStatusCancelledLegacy = 'Отменен';
-
-const cargoStatuses = [
-  cargoStatusNew,
-  cargoStatusInWork,
-  cargoStatusInTransit,
-  cargoStatusDelivered,
-  cargoStatusClosed,
-  cargoStatusCancelled,
-];
 
 class CargoFilters {
   final String from;
@@ -66,6 +29,7 @@ class CargoFilters {
   final double? minPrice;
   final double? maxPrice;
   final bool onlyWithoutDriver;
+  final bool onlyActive;
 
   const CargoFilters({
     this.from = '',
@@ -76,6 +40,7 @@ class CargoFilters {
     this.minPrice,
     this.maxPrice,
     this.onlyWithoutDriver = false,
+    this.onlyActive = false,
   });
 
   static const empty = CargoFilters();
@@ -88,7 +53,8 @@ class CargoFilters {
       maxWeight != null ||
       minPrice != null ||
       maxPrice != null ||
-      onlyWithoutDriver;
+      onlyWithoutDriver ||
+      onlyActive;
 
   CargoFilters copyWith({
     String? from,
@@ -99,6 +65,7 @@ class CargoFilters {
     double? minPrice,
     double? maxPrice,
     bool? onlyWithoutDriver,
+    bool? onlyActive,
     bool clearMinWeight = false,
     bool clearMaxWeight = false,
     bool clearMinPrice = false,
@@ -113,27 +80,49 @@ class CargoFilters {
       minPrice: clearMinPrice ? null : minPrice ?? this.minPrice,
       maxPrice: clearMaxPrice ? null : maxPrice ?? this.maxPrice,
       onlyWithoutDriver: onlyWithoutDriver ?? this.onlyWithoutDriver,
+      onlyActive: onlyActive ?? this.onlyActive,
     );
   }
 }
 
 Color _statusColor(String status) {
   switch (status) {
-    case cargoStatusNew:
-      return const Color(0xFF2563EB);
-    case cargoStatusInWork:
-      return const Color(0xFF7C3AED);
-    case cargoStatusInTransit:
-      return const Color(0xFF0891B2);
-    case cargoStatusDelivered:
-    case cargoStatusDeliveredLegacy:
-      return const Color(0xFF16A34A);
-    case cargoStatusClosed:
-    case cargoStatusClosedLegacy:
-      return const Color(0xFF0F766E);
-    case cargoStatusCancelled:
-    case cargoStatusCancelledLegacy:
-      return const Color(0xFFDC2626);
+    case CargoStatus.draft:
+      return const Color(0xFF64748B); // Slate
+    case CargoStatus.published:
+      return const Color(0xFF2563EB); // Blue
+    case CargoStatus.hasApplications:
+      return const Color(0xFF3B82F6); // Lighter Blue
+    case CargoStatus.executorSelected:
+      return const Color(0xFF8B5CF6); // Violet
+    case CargoStatus.waitingConfirmation:
+      return const Color(0xFFEAB308); // Yellow
+    case CargoStatus.confirmed:
+      return const Color(0xFF10B981); // Emerald
+    case CargoStatus.waitingLoading:
+      return const Color(0xFFF59E0B); // Amber
+    case CargoStatus.loading:
+      return const Color(0xFFD97706); // Darker Amber
+    case CargoStatus.loaded:
+      return const Color(0xFF14B8A6); // Teal
+    case CargoStatus.inTransit:
+      return const Color(0xFF0891B2); // Cyan
+    case CargoStatus.unloading:
+      return const Color(0xFF0284C7); // Light Blue
+    case CargoStatus.delivered:
+      return const Color(0xFF22C55E); // Green
+    case CargoStatus.waitingDocuments:
+      return const Color(0xFFF43F5E); // Rose
+    case CargoStatus.waitingPayment:
+      return const Color(0xFFEC4899); // Pink
+    case CargoStatus.closed:
+      return const Color(0xFF16A34A); // Darker Green
+    case CargoStatus.cancelled:
+      return const Color(0xFFDC2626); // Red
+    case CargoStatus.dispute:
+      return const Color(0xFF991B1B); // Dark Red
+    case CargoStatus.expired:
+      return const Color(0xFF475569); // Dark Slate
     default:
       return const Color(0xFF64748B);
   }

@@ -20,19 +20,21 @@ class ApplicationsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final visible = user.isDriver
-        ? applications.where((item) => item.applicantId == user.uid).toList()
-        : applications.where((item) => item.ownerId == user.uid).toList();
+    final visible = applications.where((a) {
+      final isMyApplication = a.applicantId == user.uid;
+      final isMyCargo = cargos.any((c) => c.id == a.cargoId && c.ownerId == user.uid);
+      return isMyApplication || isMyCargo;
+    }).toList();
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 96),
       children: [
         _WorkflowHeader(
           icon: Icons.how_to_reg_rounded,
-          title: user.isDriver ? 'Мои отклики' : 'Отклики на мои грузы',
-          subtitle: user.isDriver
-              ? 'Следите, какие заявки приняли, а какие еще ждут решения.'
-              : 'Выбирайте исполнителей из откликнувшихся пользователей.',
+          title: user.canCreateCargo ? 'Отклики на мои грузы' : 'Мои отклики',
+          subtitle: user.canCreateCargo
+              ? 'Выбирайте исполнителей из откликнувшихся пользователей.'
+              : 'Следите, какие заявки приняли, а какие еще ждут решения.',
         ),
         const SizedBox(height: 16),
         if (visible.isEmpty)
@@ -117,7 +119,7 @@ class _ApplicationCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        user.isDriver
+                        user.canApplyToCargo
                             ? 'Ваш отклик отправлен ${DateFormat('dd.MM HH:mm').format(application.createdAt)}'
                             : '${application.applicantName} ${application.applicantUsername}',
                         style: TextStyle(
@@ -157,7 +159,7 @@ class _ApplicationCard extends StatelessWidget {
                 ],
               ),
             ],
-            if (!user.isDriver && application.isPending && onDecision != null)
+            if (user.canCreateCargo && application.isPending && onDecision != null)
               Padding(
                 padding: const EdgeInsets.only(top: 14),
                 child: Row(

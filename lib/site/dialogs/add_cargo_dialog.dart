@@ -77,7 +77,7 @@ class _AddCargoDialogState extends State<AddCargoDialog> {
           title: _title.text.trim(),
           from: _from.text.trim(),
           to: _to.text.trim(),
-          status: 'Новый',
+          status: CargoStatus.published,
           ownerId: widget.ownerId,
           description: _description.text.trim().isEmpty
               ? null

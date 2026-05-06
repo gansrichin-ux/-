@@ -134,12 +134,13 @@ class _UserDirectoryCard extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     final roleColor = user.isDriver ? colors.tertiary : colors.primary;
 
-    return Card(
+    return AppCard(
+      padding: EdgeInsets.zero,
       child: InkWell(
         onTap: onOpen,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           child: Row(
             children: [
               _UserAvatar(user: user, color: roleColor, radius: 24),

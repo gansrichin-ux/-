@@ -360,7 +360,7 @@ class AuthRepository {
           .timeout(const Duration(seconds: 4));
       final data = doc.data();
       if (doc.exists && data?['active'] == true) {
-        return model.copyWith(role: 'admin');
+        return model.copyWith(role: 'admin', roles: ['admin', ...model.roles]);
       }
     } catch (_) {
       // Если проверка админ-доступа временно недоступна, оставляем обычную роль.
