@@ -11,6 +11,8 @@ enum SiteSection {
   users,
   favorites,
   activity,
+  findTransport,
+  myTransport,
   admin,
   sync,
 }
@@ -42,6 +44,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
   late final Stream<List<UserModel>> _usersStream;
   late final Stream<Set<String>> _favoritesStream;
   late final Stream<List<CargoApplicationModel>> _applicationsStream;
+  late final Stream<List<TransportModel>> _transportsStream;
 
   @override
   void initState() {
@@ -50,6 +53,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
     _usersStream = UserRepository.instance.watchAllUsers();
     _favoritesStream = UserRepository.instance.watchFavoriteCargoIds(widget.user.uid);
     _applicationsStream = SiteWorkflowRepository.instance.watchApplicationsForUser(widget.user);
+    _transportsStream = TransportRepository.instance.watchAvailableTransport();
   }
 
   List<SiteSection> get _visibleSections => [
@@ -59,6 +63,8 @@ class _SiteDashboardState extends State<SiteDashboard> {
         SiteSection.tender,
         SiteSection.applications,
         SiteSection.chats,
+        SiteSection.findTransport,
+        SiteSection.myTransport,
         SiteSection.users,
         SiteSection.favorites,
         SiteSection.activity,
@@ -95,59 +101,60 @@ class _SiteDashboardState extends State<SiteDashboard> {
                 return StreamBuilder<List<CargoApplicationModel>>(
                   stream: _applicationsStream,
                   builder: (context, applicationSnapshot) {
-                    final applications = applicationSnapshot.data ??
-                        const <CargoApplicationModel>[];
+                    final applications = applicationSnapshot.data ?? const <CargoApplicationModel>[];
 
-                    return AppResponsiveScaffold(
-                      appBar: isWide
-                          ? null
-                          : AppBar(
-                              title: const Text('Logist App Site'),
-                              actions: _topActions(users, cargos),
-                            ),
-                      sidebar: _buildRail(context),
-                      bottomNavigation: _buildBottomBar(),
-                      floatingActionButton: !_canCreateCargo
-                          ? null
-                          : FloatingActionButton.extended(
-                              onPressed: () => _showCargoDialog(context),
-                              icon: const Icon(Icons.add_rounded),
-                              label: const Text('Груз'),
-                            ),
-                      body: Column(
-                        children: [
-                          if (isWide)
-                            _buildTopBar(
-                              context,
-                              cargoSnapshot,
-                              users,
-                              cargos,
-                            ),
-                          Expanded(
-                            child: cargoSnapshot.connectionState ==
-                                        ConnectionState.waiting &&
-                                    !cargoSnapshot.hasData
-                                ? const Center(
-                                    child: CircularProgressIndicator(),
-                                  )
-                                : cargoError != null
-                                    ? Center(
-                                        child: _StatePanel(
-                                          icon: Icons.cloud_off_rounded,
-                                          title: 'Данные недоступны',
-                                          message: cargoError.toString(),
-                                        ),
+                    return StreamBuilder<List<TransportModel>>(
+                      stream: _transportsStream,
+                      builder: (context, transportSnapshot) {
+                        final transports = transportSnapshot.data ?? const <TransportModel>[];
+
+                        return AppResponsiveScaffold(
+                          appBar: isWide
+                              ? null
+                              : AppBar(
+                                  title: const Text('Logist App Site'),
+                                  actions: _topActions(users, cargos),
+                                ),
+                          sidebar: _buildRail(context),
+                          bottomNavigation: _buildBottomBar(),
+                          floatingActionButton: _fab(context),
+                          body: Column(
+                            children: [
+                              if (isWide)
+                                _buildTopBar(
+                                  context,
+                                  cargoSnapshot,
+                                  users,
+                                  cargos,
+                                ),
+                              Expanded(
+                                child: cargoSnapshot.connectionState ==
+                                            ConnectionState.waiting &&
+                                        !cargoSnapshot.hasData
+                                    ? const Center(
+                                        child: CircularProgressIndicator(),
                                       )
-                                    : _buildSection(
-                                        cargos,
-                                        drivers,
-                                        users,
-                                        favoriteCargoIds,
-                                        applications,
-                                      ),
+                                    : cargoError != null
+                                        ? Center(
+                                            child: _StatePanel(
+                                              icon: Icons.cloud_off_rounded,
+                                              title: 'Данные недоступны',
+                                              message: cargoError.toString(),
+                                            ),
+                                          )
+                                        : _buildSection(
+                                            cargos,
+                                            drivers,
+                                            users,
+                                            favoriteCargoIds,
+                                            applications,
+                                            transports,
+                                          ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        );
+                      },
                     );
                   },
                 );
@@ -237,8 +244,16 @@ class _SiteDashboardState extends State<SiteDashboard> {
             FilledButton.icon(
               onPressed: () => _showCargoDialog(context),
               icon: const Icon(Icons.add_rounded),
-              label: const Text('Новый груз'),
+              label: const Text('Груз'),
             ),
+          if (_canCreateTransport) ...[
+            const SizedBox(width: 12),
+            FilledButton.icon(
+              onPressed: () => _showTransportDialog(context),
+              icon: const Icon(Icons.local_shipping_rounded),
+              label: const Text('Транспорт'),
+            ),
+          ],
           const SizedBox(width: 12),
           ..._topActions(users, cargos),
         ],
@@ -338,6 +353,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
     List<UserModel> users,
     Set<String> favoriteCargoIds,
     List<CargoApplicationModel> applications,
+    List<TransportModel> transports,
   ) {
     switch (_section) {
       case SiteSection.overview:
@@ -476,6 +492,19 @@ class _SiteDashboardState extends State<SiteDashboard> {
         );
       case SiteSection.activity:
         return ActivitySection(user: widget.user);
+      case SiteSection.findTransport:
+        return FindTransportSection(
+          user: widget.user,
+          transports: transports,
+          onOpenProfile: _openProfile,
+          onOpenChat: _openChatWithUser,
+        );
+      case SiteSection.myTransport:
+        return MyTransportSection(
+          user: widget.user,
+          onAddTransport: () => _showTransportDialog(context),
+          onOpenProfile: _openProfile,
+        );
       case SiteSection.admin:
         return AdminSection(user: widget.user, users: users, cargos: cargos);
       case SiteSection.sync:
@@ -583,6 +612,28 @@ class _SiteDashboardState extends State<SiteDashboard> {
       widget.user.canCreateCargo &&
       (_section == SiteSection.myCargos || _section == SiteSection.cargos);
 
+  bool get _canCreateTransport =>
+      widget.user.canApplyToCargo &&
+      (_section == SiteSection.myTransport || _section == SiteSection.findTransport);
+
+  Widget? _fab(BuildContext context) {
+    if (_canCreateCargo) {
+      return FloatingActionButton.extended(
+        onPressed: () => _showCargoDialog(context),
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('Груз'),
+      );
+    }
+    if (_canCreateTransport) {
+      return FloatingActionButton.extended(
+        onPressed: () => _showTransportDialog(context),
+        icon: const Icon(Icons.local_shipping_rounded),
+        label: const Text('Транспорт'),
+      );
+    }
+    return null;
+  }
+
   List<CargoModel> _personalCargos(List<CargoModel> cargos) {
     return cargos.where((cargo) {
       final isMyDriverCargo = widget.user.canApplyToCargo && cargo.driverId == widget.user.uid;
@@ -644,6 +695,18 @@ class _SiteDashboardState extends State<SiteDashboard> {
     if (!mounted || created != true) return;
     ScaffoldMessenger.of(this.context).showSnackBar(
       const SnackBar(content: Text('Груз создан и синхронизирован')),
+    );
+  }
+
+  Future<void> _showTransportDialog(BuildContext context) async {
+    final created = await showDialog<bool>(
+      context: context,
+      builder: (context) => AddTransportDialog(ownerId: widget.user.uid),
+    );
+
+    if (!mounted || created != true) return;
+    ScaffoldMessenger.of(this.context).showSnackBar(
+      const SnackBar(content: Text('Транспорт добавлен в базу')),
     );
   }
 
@@ -768,6 +831,10 @@ String _sectionTitle(SiteSection section) {
       return 'Отмеченные';
     case SiteSection.activity:
       return 'История';
+    case SiteSection.findTransport:
+      return 'Найти транспорт';
+    case SiteSection.myTransport:
+      return 'Мой транспорт';
     case SiteSection.admin:
       return 'Админ';
     case SiteSection.sync:
@@ -797,6 +864,10 @@ String _sectionShortTitle(SiteSection section) {
       return 'Звезды';
     case SiteSection.activity:
       return 'История';
+    case SiteSection.findTransport:
+      return 'Поиск ТС';
+    case SiteSection.myTransport:
+      return 'Мои ТС';
     case SiteSection.admin:
       return 'Админ';
     case SiteSection.sync:
@@ -830,6 +901,10 @@ IconData _sectionIcon(SiteSection section, {required bool selected}) {
       return selected ? Icons.star_rounded : Icons.star_border_rounded;
     case SiteSection.activity:
       return selected ? Icons.manage_history_rounded : Icons.history_rounded;
+    case SiteSection.findTransport:
+      return selected ? Icons.local_shipping_rounded : Icons.local_shipping_outlined;
+    case SiteSection.myTransport:
+      return selected ? Icons.commute_rounded : Icons.commute_outlined;
     case SiteSection.admin:
       return selected
           ? Icons.admin_panel_settings_rounded

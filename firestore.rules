@@ -226,5 +226,11 @@ service cloud.firestore {
         allow delete: if isAdmin();
       }
     }
+    match /transports/{transportId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isAdmin() || (signedIn() && resource.data.ownerId == request.auth.uid);
+      allow delete: if isAdmin() || (signedIn() && resource.data.ownerId == request.auth.uid);
+    }
   }
 }
