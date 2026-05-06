@@ -30,7 +30,25 @@ class CargoModel {
   bool get isDraft => status == CargoStatus.draft;
   bool get isPublished => status == CargoStatus.published;
   bool get hasApplications => status == CargoStatus.hasApplications;
-  bool get hasExecutor => status != CargoStatus.draft && status != CargoStatus.published && status != CargoStatus.hasApplications && status != CargoStatus.waitingConfirmation;
+  /// True when a specific executor (driver/forwarder) has been chosen.
+  /// Covers all stages from executorSelected onward, OR when driverId is set.
+  bool get hasExecutor =>
+      (driverId != null && driverId!.isNotEmpty) ||
+      const [
+        CargoStatus.executorSelected,
+        CargoStatus.waitingConfirmation,
+        CargoStatus.confirmed,
+        CargoStatus.waitingLoading,
+        CargoStatus.loading,
+        CargoStatus.loaded,
+        CargoStatus.inTransit,
+        CargoStatus.unloading,
+        CargoStatus.delivered,
+        CargoStatus.waitingDocuments,
+        CargoStatus.waitingPayment,
+        CargoStatus.closed,
+        CargoStatus.dispute,
+      ].contains(status);
   bool get isActive => const [
         CargoStatus.published,
         CargoStatus.hasApplications,

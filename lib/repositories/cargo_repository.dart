@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../core/config/cargo_statuses.dart';
+import '../core/config/role_permissions.dart';
 import '../core/services/cargo_photo_uploader.dart';
 import '../models/cargo_model.dart';
 import '../models/user_model.dart';
+
 class CargoRepository {
   CargoRepository._();
   static final CargoRepository instance = CargoRepository._();
@@ -116,10 +118,11 @@ class CargoRepository {
     required String driverId,
     required String driverName,
   }) async {
+    // Write new canonical status; CargoModel.fromFirestore will normalise any legacy values on read
     await _cargos.doc(cargoId).update({
       'driverId': driverId,
       'driverName': driverName,
-      'status': 'В работе',
+      'status': CargoStatus.executorSelected,
     });
   }
 
@@ -136,27 +139,67 @@ class CargoRepository {
     return uploadCargoPhoto(ref, file);
   }
 
+  /// Returns a real-time stream of active cargos visible to [user].
+  /// Role matrix:
+  ///   admin            – all cargos (no uid filter)
+  ///   logistician      – ownerId == uid (manages own/corporate cargos)
+  ///   cargo_owner      – ownerId == uid
+  ///   driver/forwarder – driverId == uid
+  ///   dual roles (driver+cargo_owner) – both sets merged client-side
   Stream<List<CargoModel>> watchActiveCargosForUser(UserModel user) {
-    Query<Map<String, dynamic>> query = _cargos;
-
-    if (user.role == 'driver') {
-      query = query.where('driverId', isEqualTo: user.uid);
-    } else {
-      query = query.where('ownerId', isEqualTo: user.uid);
+    // Admin sees everything – no uid restriction
+    if (RolePermissions.hasRole(user, RolePermissions.admin)) {
+      return _cargos.snapshots().map(_toSortedActiveCargos);
     }
 
-    return query.snapshots().map((snap) {
-      final cargos = snap.docs
-          .map(CargoModel.fromFirestore)
-          .where((cargo) => cargo.isActive)
-          .toList();
-      cargos.sort((a, b) {
-        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        return bDate.compareTo(aDate);
+    final isDriver = RolePermissions.hasRole(user, RolePermissions.driver) ||
+        RolePermissions.hasRole(user, RolePermissions.forwarder);
+    final isOwner = RolePermissions.hasRole(user, RolePermissions.cargoOwner) ||
+        RolePermissions.hasRole(user, RolePermissions.logistician);
+
+    // Dual role: merge two streams client-side
+    if (isDriver && isOwner) {
+      final byDriver = _cargos
+          .where('driverId', isEqualTo: user.uid)
+          .snapshots()
+          .map(_toSortedActiveCargos);
+      final byOwner = _cargos
+          .where('ownerId', isEqualTo: user.uid)
+          .snapshots()
+          .map(_toSortedActiveCargos);
+      return byDriver.asyncExpand((driverCargos) {
+        return byOwner.map((ownerCargos) {
+          final merged = {...driverCargos, ...ownerCargos}.toList();
+          merged.sort((a, b) {
+            final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+            final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+            return bDate.compareTo(aDate);
+          });
+          return merged;
+        });
       });
-      return cargos;
+    }
+
+    // Single role
+    final Query<Map<String, dynamic>> query = isDriver
+        ? _cargos.where('driverId', isEqualTo: user.uid)
+        : _cargos.where('ownerId', isEqualTo: user.uid);
+
+    return query.snapshots().map(_toSortedActiveCargos);
+  }
+
+  List<CargoModel> _toSortedActiveCargos(
+      QuerySnapshot<Map<String, dynamic>> snap) {
+    final cargos = snap.docs
+        .map(CargoModel.fromFirestore)
+        .where((cargo) => cargo.isActive)
+        .toList();
+    cargos.sort((a, b) {
+      final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return bDate.compareTo(aDate);
     });
+    return cargos;
   }
 
   Future<void> addPhotoUrl(String cargoId, String photoUrl) async {

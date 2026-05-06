@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
+import '../core/config/cargo_statuses.dart';
 import '../models/cargo_model.dart';
 import '../models/document_model.dart';
 import '../models/site_workflow_models.dart';
@@ -192,7 +193,8 @@ class SiteWorkflowRepository {
       batch.update(_firestore.collection('cargos').doc(cargo.id), {
         'driverId': application.applicantId,
         'driverName': application.applicantName,
-        'status': 'В работе',
+        // executorSelected = driver chosen, waiting for trip confirmation
+        'status': CargoStatus.executorSelected,
         'updatedAt': FieldValue.serverTimestamp(),
       });
     }
@@ -248,20 +250,24 @@ class SiteWorkflowRepository {
     required UserModel actor,
     required String status,
   }) async {
+    // Always store canonical English status keys; legacy values are normalised on read
+    final canonicalStatus = CargoStatus.fromLegacy(status);
     final batch = _firestore.batch();
     batch.update(_firestore.collection('cargos').doc(cargo.id), {
-      'status': status,
+      'status': canonicalStatus,
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
     final recipients = _visibleTo(cargo, actor.uid);
+    final isDelivered = canonicalStatus == CargoStatus.delivered;
     for (final uid in recipients.where((uid) => uid != actor.uid)) {
-      final isDelivered = status == 'Доставлено';
       _addNotificationToBatch(
         batch,
         userId: uid,
         title: isDelivered ? 'Груз доставлен в пункт назначения' : 'Статус груза изменен',
-        body: isDelivered ? '"${cargo.title}" успешно доставлен в ${cargo.to}' : '"${cargo.title}" теперь: $status',
+        body: isDelivered
+            ? '"${cargo.title}" успешно доставлен в ${cargo.to}'
+            : '"${cargo.title}" теперь: ${CargoStatus.getDisplayStatus(canonicalStatus)}',
         type: 'status',
         relatedId: cargo.id,
       );
@@ -270,7 +276,7 @@ class SiteWorkflowRepository {
     _addActivityToBatch(
       batch,
       title: 'Статус обновлен',
-      body: '"${cargo.title}" теперь: $status',
+      body: '"${cargo.title}" теперь: ${CargoStatus.getDisplayStatus(canonicalStatus)}',
       actor: actor,
       cargo: cargo,
       type: 'status',
