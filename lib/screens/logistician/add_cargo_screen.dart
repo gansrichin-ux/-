@@ -244,7 +244,7 @@ class _AddCargoScreenState extends State<AddCargoScreen> {
               TextFormField(
                 controller: _descriptionController,
                 decoration: const InputDecoration(
-                  labelText: 'Комментарий',
+                  labelText: 'Дополнительные сведения',
                   prefixIcon: Icon(Icons.notes_rounded),
                 ),
                 maxLines: 3,

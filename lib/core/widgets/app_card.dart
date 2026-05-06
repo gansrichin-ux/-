@@ -10,6 +10,7 @@ class AppCard extends StatelessWidget {
   final Color? color;
   final bool elevated;
   final bool withBorder;
+  final BoxConstraints? constraints;
 
   const AppCard({
     super.key,
@@ -20,6 +21,7 @@ class AppCard extends StatelessWidget {
     this.color,
     this.elevated = false,
     this.withBorder = true,
+    this.constraints,
   });
 
   @override
@@ -41,6 +43,7 @@ class AppCard extends StatelessWidget {
 
     return Container(
       margin: margin,
+      constraints: constraints,
       decoration: BoxDecoration(
         color: color ?? theme.cardColor,
         borderRadius: AppRadius.mediumRadius,

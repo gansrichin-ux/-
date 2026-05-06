@@ -66,6 +66,7 @@ class CargosSection extends StatelessWidget {
         _CargoToolbar(
           query: query,
           status: status,
+          user: user,
           filters: filters,
           bodyTypes: allCargos
               .map((cargo) => cargo.bodyType?.trim())
@@ -181,6 +182,7 @@ class _CargoSectionHeader extends StatelessWidget {
 class _CargoToolbar extends StatelessWidget {
   final String query;
   final String? status;
+  final UserModel user;
   final CargoFilters filters;
   final List<String> bodyTypes;
   final ValueChanged<String> onQueryChanged;
@@ -191,6 +193,7 @@ class _CargoToolbar extends StatelessWidget {
   const _CargoToolbar({
     required this.query,
     required this.status,
+    required this.user,
     required this.filters,
     required this.bodyTypes,
     required this.onQueryChanged,
@@ -207,7 +210,7 @@ class _CargoToolbar extends StatelessWidget {
             children: [
               Expanded(child: _buildSearch()),
               const SizedBox(width: 14),
-              _StatusChips(status: status, onChanged: onStatusChanged),
+              _StatusChips(status: status, user: user, onChanged: onStatusChanged),
               if (onAddCargo != null) ...[
                 const SizedBox(width: 14),
                 FilledButton.icon(
@@ -227,6 +230,7 @@ class _CargoToolbar extends StatelessWidget {
                   Expanded(
                     child: _StatusChips(
                       status: status,
+                      user: user,
                       onChanged: onStatusChanged,
                     ),
                   ),
@@ -304,9 +308,10 @@ class _StatusFilter extends StatelessWidget {
 
 class _StatusChips extends StatefulWidget {
   final String? status;
+  final UserModel user;
   final ValueChanged<String?> onChanged;
 
-  const _StatusChips({required this.status, required this.onChanged});
+  const _StatusChips({required this.status, required this.user, required this.onChanged});
 
   @override
   State<_StatusChips> createState() => _StatusChipsState();
@@ -324,7 +329,14 @@ class _StatusChipsState extends State<_StatusChips> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final options = <String?>[null, ...CargoStatus.values];
+    final isAdmin = widget.user.isAdmin;
+    final publicStatuses = [
+      CargoStatus.published,
+      CargoStatus.confirmed,
+      CargoStatus.delivered,
+      CargoStatus.cancelled,
+    ];
+    final options = <String?>[null, ...(isAdmin ? CargoStatus.values : publicStatuses)];
 
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 520),
@@ -816,7 +828,7 @@ class CargoWebCard extends StatelessWidget {
       children: [
         Text(
           '$formattedPrice ${cargo.currency ?? '₸'}',
-          style: AppTextStyles.headlineSmall.copyWith(
+          style: AppTextStyles.titleLarge.copyWith(
             color: colors.primary,
             fontWeight: FontWeight.w900,
             letterSpacing: -0.5,
@@ -889,7 +901,7 @@ class CargoWebCard extends StatelessWidget {
       ),
       const SizedBox(width: 12, height: 12),
       AppButton(
-        label: cargo.photos.isNotEmpty ? 'Фото (${cargo.photos.length})' : 'Фото',
+        label: cargo.photos.isNotEmpty ? 'Фото груза (${cargo.photos.length})' : 'Фото груза',
         icon: Icons.photo_library_outlined,
         variant: AppButtonVariant.secondary,
         onPressed: () => _showDocumentsDialog(context),
@@ -1003,7 +1015,14 @@ class CargoWebCard extends StatelessWidget {
       context: context,
       builder: (context) => SimpleDialog(
         title: const Text('Изменить статус'),
-        children: CargoStatus.values
+        children: (user.isAdmin
+                ? CargoStatus.values
+                : [
+                    CargoStatus.published,
+                    CargoStatus.delivered,
+                    CargoStatus.confirmed,
+                    CargoStatus.cancelled,
+                  ])
             .map(
               (status) => ListTile(
                 leading: Icon(

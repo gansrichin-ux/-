@@ -121,11 +121,11 @@ class RouteBadge extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 6.0),
           child: Text(
-            '→',
+            '·',
             style: TextStyle(
               fontSize: fontSize + 2,
               color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
-              fontWeight: FontWeight.w400,
+              fontWeight: FontWeight.w900,
             ),
           ),
         ),

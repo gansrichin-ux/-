@@ -31,6 +31,8 @@ class _AddCargoDialogState extends State<AddCargoDialog> {
   bool _isReady = true;
 
   final List<XFile> _selectedPhotos = [];
+  
+  List<String> get bodyTypes => TruckBodyTypes.labels.values.toList();
 
   @override
   void dispose() {
@@ -224,7 +226,7 @@ class _AddCargoDialogState extends State<AddCargoDialog> {
                                 child: DropdownButtonFormField<String>(
                                   value: _currency,
                                   decoration: const InputDecoration(labelText: 'Валюта'),
-                                  items: ['₸', '₽', '$', '€']
+                                  items: ['₸', '₽', '\$', '€']
                                       .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                                       .toList(),
                                   onChanged: (v) => setState(() => _currency = v!),
@@ -242,7 +244,7 @@ class _AddCargoDialogState extends State<AddCargoDialog> {
                         minLines: 2,
                         maxLines: 4,
                         decoration: const InputDecoration(
-                          labelText: 'Детали перевозки (время, доп. требования)',
+                          labelText: 'Дополнительные сведения',
                           alignLabelWithHint: true,
                         ),
                       ),
