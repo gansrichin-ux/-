@@ -82,10 +82,7 @@ service cloud.firestore {
 
     match /drivers/{uid} {
       allow read: if signedIn();
-      allow create: if signedIn() && (
-        request.resource.data.role in ['driver', 'driver_forwarder', 'driver_cargo_owner'] ||
-        request.resource.data.roles.hasAny(['driver'])
-      );
+      allow create: if isSelf(uid) && request.resource.data.role == 'driver';
       allow update: if isAdmin()
         || (isSelf(uid) && ownProfileUpdate())
         || (signedIn() && ratingAggregateUpdate());
@@ -94,10 +91,7 @@ service cloud.firestore {
 
     match /logisticians/{uid} {
       allow read: if signedIn();
-      allow create: if signedIn() && (
-        request.resource.data.role == 'logistician' ||
-        request.resource.data.roles.hasAny(['logistician'])
-      );
+      allow create: if isSelf(uid) && request.resource.data.role == 'logistician';
       allow update: if isAdmin()
         || (isSelf(uid) && ownProfileUpdate())
         || (signedIn() && ratingAggregateUpdate());

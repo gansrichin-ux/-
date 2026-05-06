@@ -108,17 +108,7 @@ class AuthRepository {
     final normalizedUsername = _normalizeUsername(username);
 
     // Compute roles array
-    List<String> computedRoles;
-    switch (role) {
-      case 'driver_forwarder':
-        computedRoles = ['driver', 'forwarder'];
-        break;
-      case 'driver_cargo_owner':
-        computedRoles = ['driver', 'cargo_owner'];
-        break;
-      default:
-        computedRoles = [role];
-    }
+    final computedRoles = _rolesFromSelectedRole(role);
 
     // Проверяем имя пользователя до создания аккаунта
     final usernameRef =
@@ -228,10 +218,15 @@ class AuthRepository {
   /// Forwarders and Cargo Owners only live in the 'users' collection.
   Future<void> _writeLegacyRoleMirror(UserModel user) async {
     String? collectionName;
+    String legacyRole = user.role;
+
     if (user.roles.contains('driver')) {
       collectionName = 'drivers';
+      // For compatibility with firestore.rules that might expect exactly 'driver'
+      legacyRole = 'driver';
     } else if (user.roles.contains('logistician')) {
       collectionName = 'logisticians';
+      legacyRole = 'logistician';
     }
 
     if (collectionName == null) return;
@@ -239,10 +234,15 @@ class AuthRepository {
     int collectionRetries = 3;
     while (collectionRetries > 0) {
       try {
+        final legacyData = user.toMap();
+        // Override role to be compatible with legacy rules
+        legacyData['role'] = legacyRole;
+        legacyData['primaryRole'] = user.role; // Keep original role here
+
         await _firestore
             .collection(collectionName)
             .doc(user.uid)
-            .set(user.toMap())
+            .set(legacyData)
             .timeout(const Duration(seconds: 5));
         return;
       } catch (e) {
@@ -256,6 +256,25 @@ class AuthRepository {
         // if just the legacy mirror fails (users collection is the source of truth now).
         return;
       }
+    }
+  }
+
+  List<String> _rolesFromSelectedRole(String role) {
+    switch (role) {
+      case 'driver_forwarder':
+        return ['driver', 'forwarder'];
+      case 'driver_cargo_owner':
+        return ['driver', 'cargo_owner'];
+      case 'driver':
+        return ['driver'];
+      case 'logistician':
+        return ['logistician'];
+      case 'forwarder':
+        return ['forwarder'];
+      case 'cargo_owner':
+        return ['cargo_owner'];
+      default:
+        return [role];
     }
   }
 
@@ -329,30 +348,42 @@ class AuthRepository {
       return _withAdminAccess(model);
     }
 
-    final collectionName = role == 'driver' ? 'drivers' : 'logisticians';
-    final doc = await _firestore.collection(collectionName).doc(user.uid).get();
-
-    if (doc.exists) {
-      final model = UserModel.fromFirestore(doc);
-      final username = model.username?.isNotEmpty == true
-          ? model.username!
-          : _legacyUsername(user);
-      await _firestore.collection('users').doc(user.uid).set({
-        'uid': model.uid,
-        'role': model.role,
-        'email': model.email.isEmpty ? user.email ?? '' : model.email,
-        'username': username,
-        'usernameLower': username.toLowerCase(),
-        if (model.name?.isNotEmpty == true) 'name': model.name,
-        if (model.car?.isNotEmpty == true) 'car': model.car,
-        'ratingCount': model.ratingCount,
-        'ratingSum': model.ratingSum,
-      }, SetOptions(merge: true));
-      await _reserveUsername(username, user.uid);
-      return _withAdminAccess(model.copyWith(username: username));
+    // If not in new format, try legacy collections
+    String? collectionName;
+    if (role == 'driver' || role.startsWith('driver_')) {
+      collectionName = 'drivers';
+    } else if (role == 'logistician') {
+      collectionName = 'logisticians';
     }
 
-    // Если в новой папке нет, берем из старой
+    if (collectionName != null) {
+      final doc =
+          await _firestore.collection(collectionName).doc(user.uid).get();
+
+      if (doc.exists) {
+        final model = UserModel.fromFirestore(doc);
+        final username = model.username?.isNotEmpty == true
+            ? model.username!
+            : _legacyUsername(user);
+        await _firestore.collection('users').doc(user.uid).set({
+          'uid': model.uid,
+          'role': model.role,
+          'roles': model.roles.isNotEmpty ? model.roles : [model.role],
+          'email': model.email.isEmpty ? user.email ?? '' : model.email,
+          'username': username,
+          'usernameLower': username.toLowerCase(),
+          if (model.name?.isNotEmpty == true) 'name': model.name,
+          if (model.car?.isNotEmpty == true) 'car': model.car,
+          'ratingCount': model.ratingCount,
+          'ratingSum': model.ratingSum,
+          'preferredLanguage': 'ru',
+        }, SetOptions(merge: true));
+        await _reserveUsername(username, user.uid);
+        return _withAdminAccess(model.copyWith(username: username));
+      }
+    }
+
+    // Если в новой папке нет и это не старый водитель/логист, берем из users (там должен быть минимум)
     final model = await _ensureUsername(UserModel.fromFirestore(userDoc), user);
     return _withAdminAccess(model);
   }
@@ -389,7 +420,6 @@ class AuthRepository {
     if (model.username?.isNotEmpty == true) return model;
 
     final username = _legacyUsername(user);
-    final roleCollection = model.isDriver ? 'drivers' : 'logisticians';
     final updates = {
       'username': username,
       'usernameLower': username.toLowerCase(),
@@ -399,10 +429,22 @@ class AuthRepository {
           updates,
           SetOptions(merge: true),
         );
-    await _firestore.collection(roleCollection).doc(user.uid).set(
-          updates,
-          SetOptions(merge: true),
-        );
+
+    // Only mirror to legacy collections if applicable
+    String? roleCollection;
+    if (model.roles.contains('driver')) {
+      roleCollection = 'drivers';
+    } else if (model.role == 'logistician') {
+      roleCollection = 'logisticians';
+    }
+
+    if (roleCollection != null) {
+      await _firestore.collection(roleCollection).doc(user.uid).set(
+            updates,
+            SetOptions(merge: true),
+          );
+    }
+
     await _reserveUsername(username, user.uid);
 
     return model.copyWith(username: username);
