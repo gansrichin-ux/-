@@ -24,23 +24,45 @@ class CargoFilters {
   final String from;
   final String to;
   final String bodyType;
+  final String? truckType;
+  final String? shipmentType;
+  final int? carCount;
   final double? minWeight;
   final double? maxWeight;
+  final double? minVolume;
+  final double? maxVolume;
   final double? minPrice;
   final double? maxPrice;
+  final String? currency;
   final bool onlyWithoutDriver;
   final bool onlyActive;
+  final bool isUrgent;
+  final bool isHumanitarian;
+  final bool hasPhoto;
+  final bool? isReady;
+  final DateTime? loadingDate;
 
   const CargoFilters({
     this.from = '',
     this.to = '',
     this.bodyType = '',
+    this.truckType,
+    this.shipmentType,
+    this.carCount,
     this.minWeight,
     this.maxWeight,
+    this.minVolume,
+    this.maxVolume,
     this.minPrice,
     this.maxPrice,
+    this.currency,
     this.onlyWithoutDriver = false,
     this.onlyActive = false,
+    this.isUrgent = false,
+    this.isHumanitarian = false,
+    this.hasPhoto = false,
+    this.isReady,
+    this.loadingDate,
   });
 
   static const empty = CargoFilters();
@@ -49,38 +71,78 @@ class CargoFilters {
       from.trim().isNotEmpty ||
       to.trim().isNotEmpty ||
       bodyType.trim().isNotEmpty ||
+      truckType != null ||
+      shipmentType != null ||
+      carCount != null ||
       minWeight != null ||
       maxWeight != null ||
+      minVolume != null ||
+      maxVolume != null ||
       minPrice != null ||
       maxPrice != null ||
+      currency != null ||
       onlyWithoutDriver ||
-      onlyActive;
+      onlyActive ||
+      isUrgent ||
+      isHumanitarian ||
+      hasPhoto ||
+      isReady != null ||
+      loadingDate != null;
 
   CargoFilters copyWith({
     String? from,
     String? to,
     String? bodyType,
+    String? truckType,
+    String? shipmentType,
+    int? carCount,
     double? minWeight,
     double? maxWeight,
+    double? minVolume,
+    double? maxVolume,
     double? minPrice,
     double? maxPrice,
+    String? currency,
     bool? onlyWithoutDriver,
     bool? onlyActive,
+    bool? isUrgent,
+    bool? isHumanitarian,
+    bool? hasPhoto,
+    bool? isReady,
+    DateTime? loadingDate,
     bool clearMinWeight = false,
     bool clearMaxWeight = false,
+    bool clearMinVolume = false,
+    bool clearMaxVolume = false,
     bool clearMinPrice = false,
     bool clearMaxPrice = false,
+    bool clearTruckType = false,
+    bool clearShipmentType = false,
+    bool clearCarCount = false,
+    bool clearIsReady = false,
+    bool clearLoadingDate = false,
   }) {
     return CargoFilters(
       from: from ?? this.from,
       to: to ?? this.to,
       bodyType: bodyType ?? this.bodyType,
+      truckType: clearTruckType ? null : truckType ?? this.truckType,
+      shipmentType: clearShipmentType ? null : shipmentType ?? this.shipmentType,
+      carCount: clearCarCount ? null : carCount ?? this.carCount,
       minWeight: clearMinWeight ? null : minWeight ?? this.minWeight,
       maxWeight: clearMaxWeight ? null : maxWeight ?? this.maxWeight,
+      minVolume: clearMinVolume ? null : minVolume ?? this.minVolume,
+      maxVolume: clearMaxVolume ? null : maxVolume ?? this.maxVolume,
       minPrice: clearMinPrice ? null : minPrice ?? this.minPrice,
       maxPrice: clearMaxPrice ? null : maxPrice ?? this.maxPrice,
+      currency: currency ?? this.currency,
       onlyWithoutDriver: onlyWithoutDriver ?? this.onlyWithoutDriver,
       onlyActive: onlyActive ?? this.onlyActive,
+      isUrgent: isUrgent ?? this.isUrgent,
+      isHumanitarian: isHumanitarian ?? this.isHumanitarian,
+      hasPhoto: hasPhoto ?? this.hasPhoto,
+      isReady: clearIsReady ? null : isReady ?? this.isReady,
+      loadingDate: clearLoadingDate ? null : loadingDate ?? this.loadingDate,
     );
   }
 }

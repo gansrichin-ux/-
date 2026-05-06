@@ -24,8 +24,15 @@ class CargoModel {
   final double? widthM;
   final double? distanceKm;
   final double? price;
+  final String? currency;
   final bool isUrgent;
+  final bool isHumanitarian;
   final String? paymentStatus;
+  final int? carCount;
+  final String? truckType;
+  final String? shipmentType; // full, partial, reload_possible, only_separate
+  final bool isReady;
+  final String? cargoType;
 
   bool get isDraft => status == CargoStatus.draft;
   bool get isPublished => status == CargoStatus.published;
@@ -70,36 +77,22 @@ class CargoModel {
   bool get isClosed => status == CargoStatus.closed;
   double get pricePerKm => (price != null && distanceKm != null && distanceKm! > 0) ? price! / distanceKm! : 0.0;
 
-  const CargoModel({
-    required this.id,
-    required this.title,
-    required this.from,
-    required this.to,
-    required this.status,
-    this.driverId,
-    this.driverName,
-    this.ownerId,
-    this.photos = const [],
-    this.createdAt,
-    this.description,
-    this.weightKg,
-    this.volumeM3,
-    this.bodyType,
-    this.loadingDate,
-    this.loadingType,
-    this.paymentType,
-    this.lengthM,
-    this.heightM,
-    this.widthM,
     this.distanceKm,
     this.price,
+    this.currency = 'KZT',
     this.isUrgent = false,
+    this.isHumanitarian = false,
     this.paymentStatus,
-  })  : assert(id.length > 0, 'Cargo id must not be empty'),
-        assert(title.length > 0, 'Cargo title must not be empty'),
-        assert(from.length > 0, 'Cargo origin must not be empty'),
-        assert(to.length > 0, 'Cargo destination must not be empty'),
-        assert(status.length > 0, 'Cargo status must not be empty'),
+    this.carCount = 1,
+    this.truckType,
+    this.shipmentType = 'full',
+    this.isReady = true,
+    this.cargoType,
+  })  : id = id.isNotEmpty ? id : throw ArgumentError('Cargo id must not be empty'),
+        title = title.isNotEmpty ? title : throw ArgumentError('Cargo title must not be empty'),
+        from = from.isNotEmpty ? from : throw ArgumentError('Cargo origin must not be empty'),
+        to = to.isNotEmpty ? to : throw ArgumentError('Cargo destination must not be empty'),
+        status = status.isNotEmpty ? status : throw ArgumentError('Cargo status must not be empty'),
         assert(
           weightKg == null || weightKg > 0,
           'Cargo weight must be positive',
@@ -132,8 +125,15 @@ class CargoModel {
       widthM: (data['widthM'] as num?)?.toDouble(),
       distanceKm: (data['distanceKm'] as num?)?.toDouble(),
       price: (data['price'] as num?)?.toDouble(),
+      currency: data['currency'] as String? ?? 'KZT',
       isUrgent: data['isUrgent'] as bool? ?? false,
+      isHumanitarian: data['isHumanitarian'] as bool? ?? false,
       paymentStatus: data['paymentStatus'] as String?,
+      carCount: data['carCount'] as int? ?? 1,
+      truckType: data['truckType'] as String?,
+      shipmentType: data['shipmentType'] as String? ?? 'full',
+      isReady: data['isReady'] as bool? ?? true,
+      cargoType: data['cargoType'] as String?,
     );
   }
 
@@ -142,7 +142,7 @@ class CargoModel {
       'title': title,
       'from': from,
       'to': to,
-      'status': CargoStatus.toLegacy(status), // Maintain backward compatibility in DB
+      'status': CargoStatus.toLegacy(status),
       if (driverId != null) 'driverId': driverId,
       if (driverName != null) 'driverName': driverName,
       if (ownerId != null) 'ownerId': ownerId,
@@ -160,8 +160,15 @@ class CargoModel {
       if (widthM != null) 'widthM': widthM,
       if (distanceKm != null) 'distanceKm': distanceKm,
       if (price != null) 'price': price,
+      'currency': currency,
       'isUrgent': isUrgent,
+      'isHumanitarian': isHumanitarian,
       if (paymentStatus != null) 'paymentStatus': paymentStatus,
+      'carCount': carCount,
+      if (truckType != null) 'truckType': truckType,
+      'shipmentType': shipmentType,
+      'isReady': isReady,
+      if (cargoType != null) 'cargoType': cargoType,
     };
   }
 
@@ -186,8 +193,15 @@ class CargoModel {
     double? widthM,
     double? distanceKm,
     double? price,
+    String? currency,
     bool? isUrgent,
+    bool? isHumanitarian,
     String? paymentStatus,
+    int? carCount,
+    String? truckType,
+    String? shipmentType,
+    bool? isReady,
+    String? cargoType,
   }) {
     return CargoModel(
       id: id,
@@ -212,8 +226,15 @@ class CargoModel {
       widthM: widthM ?? this.widthM,
       distanceKm: distanceKm ?? this.distanceKm,
       price: price ?? this.price,
+      currency: currency ?? this.currency,
       isUrgent: isUrgent ?? this.isUrgent,
+      isHumanitarian: isHumanitarian ?? this.isHumanitarian,
       paymentStatus: paymentStatus ?? this.paymentStatus,
+      carCount: carCount ?? this.carCount,
+      truckType: truckType ?? this.truckType,
+      shipmentType: shipmentType ?? this.shipmentType,
+      isReady: isReady ?? this.isReady,
+      cargoType: cargoType ?? this.cargoType,
     );
   }
 
@@ -245,8 +266,15 @@ class CargoModel {
       widthM: (map['widthM'] as num?)?.toDouble(),
       distanceKm: (map['distanceKm'] as num?)?.toDouble(),
       price: (map['price'] as num?)?.toDouble(),
+      currency: map['currency'] as String? ?? 'KZT',
       isUrgent: map['isUrgent'] as bool? ?? false,
+      isHumanitarian: map['isHumanitarian'] as bool? ?? false,
       paymentStatus: map['paymentStatus'] as String?,
+      carCount: map['carCount'] as int? ?? 1,
+      truckType: map['truckType'] as String?,
+      shipmentType: map['shipmentType'] as String? ?? 'full',
+      isReady: map['isReady'] as bool? ?? true,
+      cargoType: map['cargoType'] as String?,
     );
   }
 
@@ -274,8 +302,15 @@ class CargoModel {
       if (widthM != null) 'widthM': widthM,
       if (distanceKm != null) 'distanceKm': distanceKm,
       if (price != null) 'price': price,
+      'currency': currency,
       'isUrgent': isUrgent,
+      'isHumanitarian': isHumanitarian,
       if (paymentStatus != null) 'paymentStatus': paymentStatus,
+      'carCount': carCount,
+      if (truckType != null) 'truckType': truckType,
+      'shipmentType': shipmentType,
+      'isReady': isReady,
+      if (cargoType != null) 'cargoType': cargoType,
     };
   }
 

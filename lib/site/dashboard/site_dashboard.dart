@@ -2,17 +2,21 @@ part of '../../main_site.dart';
 
 enum SiteSection {
   overview,
-  myCargos,
+  company,
   cargos,
-  tender,
-  applications,
+  findTransport,
+  myCargos,
+  myTransport,
+  favorites,
   chats,
+  tender,
+  insurance,
+  legal,
+  support,
+  applications,
   notifications,
   users,
-  favorites,
   activity,
-  findTransport,
-  myTransport,
   admin,
   sync,
 }
@@ -58,16 +62,17 @@ class _SiteDashboardState extends State<SiteDashboard> {
 
   List<SiteSection> get _visibleSections => [
         SiteSection.overview,
-        SiteSection.myCargos,
+        SiteSection.company,
         SiteSection.cargos,
-        SiteSection.tender,
-        SiteSection.applications,
-        SiteSection.chats,
         SiteSection.findTransport,
+        SiteSection.myCargos,
         SiteSection.myTransport,
-        SiteSection.users,
         SiteSection.favorites,
-        SiteSection.activity,
+        SiteSection.chats,
+        SiteSection.tender,
+        SiteSection.insurance,
+        SiteSection.legal,
+        SiteSection.support,
       ];
 
   void _selectSectionByIndex(int index) {
@@ -379,6 +384,11 @@ class _SiteDashboardState extends State<SiteDashboard> {
             });
           },
         );
+      case SiteSection.company:
+        return const _PlaceholderSection(
+          title: 'Моя компания',
+          description: 'Управление профилем компании, сотрудниками и документами организации.',
+        );
       case SiteSection.myCargos:
         final personalCargos = _filteredCargos(_personalCargos(cargos));
         return CargosSection(
@@ -474,7 +484,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
           title: 'Отмеченные заявки',
           emptyTitle: 'Отмеченных грузов пока нет',
           emptyMessage:
-              'Нажмите звезду в списке грузов, чтобы сохранить заявку здесь.',
+              'Нажмите галочку в списке грузов, чтобы сохранить заявку здесь.',
           showAddButton: false,
           onQueryChanged: (value) => setState(() => _query = value),
           onStatusChanged: (value) => setState(() => _status = value),
@@ -504,6 +514,21 @@ class _SiteDashboardState extends State<SiteDashboard> {
           user: widget.user,
           onAddTransport: () => _showTransportDialog(context),
           onOpenProfile: _openProfile,
+        );
+      case SiteSection.insurance:
+        return const _PlaceholderSection(
+          title: 'Страхование груза',
+          description: 'Оформление страховых полисов для ваших перевозок онлайн.',
+        );
+      case SiteSection.legal:
+        return const _PlaceholderSection(
+          title: 'Помощь юриста',
+          description: 'Консультации по транспортному праву, помощь в разрешении споров и проверка контрагентов.',
+        );
+      case SiteSection.support:
+        return const _PlaceholderSection(
+          title: 'Техподдержка',
+          description: 'Связь со специалистами Logist App для решения технических вопросов.',
         );
       case SiteSection.admin:
         return AdminSection(user: widget.user, users: users, cargos: cargos);
@@ -647,36 +672,66 @@ class _SiteDashboardState extends State<SiteDashboard> {
     final from = _filters.from.trim().toLowerCase();
     final to = _filters.to.trim().toLowerCase();
     final bodyType = _filters.bodyType.trim().toLowerCase();
+
     return cargos.where((cargo) {
+      // Stage 2A: Visibility rules for "Find Cargo" (SiteSection.cargos)
+      if (_section == SiteSection.cargos) {
+        // Only show published or active public cargos
+        final publicStatuses = [
+          CargoStatus.published,
+          CargoStatus.hasApplications,
+          CargoStatus.executorSelected,
+          CargoStatus.waitingConfirmation,
+        ];
+        if (!publicStatuses.contains(cargo.status)) return false;
+
+        // Don't show finished or cancelled
+        if (cargo.isFinished || cargo.isCancelled) return false;
+      }
+
+      // Basic Status Filter (from status chips)
       if (_status != null && cargo.status != _status) return false;
+
+      // Advanced Filters
       if (_filters.onlyWithoutDriver && cargo.driverId != null) return false;
       if (_filters.onlyActive && !cargo.isActive) return false;
-      if (from.isNotEmpty && !cargo.from.toLowerCase().contains(from)) {
-        return false;
+
+      // Route Filters
+      if (from.isNotEmpty && !cargo.from.toLowerCase().contains(from)) return false;
+      if (to.isNotEmpty && !cargo.to.toLowerCase().contains(to)) return false;
+
+      // Cargo Specs Filters
+      if (bodyType.isNotEmpty && (cargo.bodyType?.toLowerCase() ?? '') != bodyType) return false;
+      if (_filters.truckType != null && cargo.truckType != _filters.truckType) return false;
+      if (_filters.shipmentType != null && cargo.shipmentType != _filters.shipmentType) return false;
+      if (_filters.carCount != null && cargo.carCount != _filters.carCount) return false;
+
+      // Weight & Volume
+      if (_filters.minWeight != null && (cargo.weightKg ?? 0) < _filters.minWeight!) return false;
+      if (_filters.maxWeight != null && (cargo.weightKg ?? double.infinity) > _filters.maxWeight!) return false;
+      if (_filters.minVolume != null && (cargo.volumeM3 ?? 0) < _filters.minVolume!) return false;
+      if (_filters.maxVolume != null && (cargo.volumeM3 ?? double.infinity) > _filters.maxVolume!) return false;
+
+      // Price & Payment
+      if (_filters.minPrice != null && (cargo.price ?? 0) < _filters.minPrice!) return false;
+      if (_filters.maxPrice != null && (cargo.price ?? double.infinity) > _filters.maxPrice!) return false;
+      if (_filters.currency != null && cargo.currency != _filters.currency) return false;
+
+      // Badges & Readiness
+      if (_filters.isUrgent && !cargo.isUrgent) return false;
+      if (_filters.isHumanitarian && !cargo.isHumanitarian) return false;
+      if (_filters.hasPhoto && cargo.photos.isEmpty) return false;
+      if (_filters.isReady != null && cargo.isReady != _filters.isReady) return false;
+
+      // Date
+      if (_filters.loadingDate != null) {
+        if (cargo.loadingDate == null) return false;
+        final cargoDate = DateTime(cargo.loadingDate!.year, cargo.loadingDate!.month, cargo.loadingDate!.day);
+        final filterDate = DateTime(_filters.loadingDate!.year, _filters.loadingDate!.month, _filters.loadingDate!.day);
+        if (cargoDate != filterDate) return false;
       }
-      if (to.isNotEmpty && !cargo.to.toLowerCase().contains(to)) {
-        return false;
-      }
-      if (bodyType.isNotEmpty &&
-          (cargo.bodyType?.toLowerCase() ?? '') != bodyType) {
-        return false;
-      }
-      if (_filters.minWeight != null &&
-          (cargo.weightKg ?? 0) < _filters.minWeight!) {
-        return false;
-      }
-      if (_filters.maxWeight != null &&
-          (cargo.weightKg ?? double.infinity) > _filters.maxWeight!) {
-        return false;
-      }
-      if (_filters.minPrice != null &&
-          (cargo.price ?? 0) < _filters.minPrice!) {
-        return false;
-      }
-      if (_filters.maxPrice != null &&
-          (cargo.price ?? double.infinity) > _filters.maxPrice!) {
-        return false;
-      }
+
+      // Query Search
       if (query.isEmpty) return true;
       return cargo.title.toLowerCase().contains(query) ||
           cargo.from.toLowerCase().contains(query) ||
@@ -813,6 +868,8 @@ String _sectionTitle(SiteSection section) {
   switch (section) {
     case SiteSection.overview:
       return 'Кабинет';
+    case SiteSection.company:
+      return 'Моя компания';
     case SiteSection.myCargos:
       return 'Мои грузы';
     case SiteSection.cargos:
@@ -835,6 +892,12 @@ String _sectionTitle(SiteSection section) {
       return 'Найти транспорт';
     case SiteSection.myTransport:
       return 'Мой транспорт';
+    case SiteSection.insurance:
+      return 'Страхование';
+    case SiteSection.legal:
+      return 'Помощь юриста';
+    case SiteSection.support:
+      return 'Техподдержка';
     case SiteSection.admin:
       return 'Админ';
     case SiteSection.sync:
@@ -846,6 +909,8 @@ String _sectionShortTitle(SiteSection section) {
   switch (section) {
     case SiteSection.overview:
       return 'Кабинет';
+    case SiteSection.company:
+      return 'Компания';
     case SiteSection.myCargos:
       return 'Мои';
     case SiteSection.cargos:
@@ -868,6 +933,12 @@ String _sectionShortTitle(SiteSection section) {
       return 'Поиск ТС';
     case SiteSection.myTransport:
       return 'Мои ТС';
+    case SiteSection.insurance:
+      return 'Страхование';
+    case SiteSection.legal:
+      return 'Юрист';
+    case SiteSection.support:
+      return 'Поддержка';
     case SiteSection.admin:
       return 'Админ';
     case SiteSection.sync:
@@ -881,6 +952,8 @@ IconData _sectionIcon(SiteSection section, {required bool selected}) {
       return selected
           ? Icons.space_dashboard_rounded
           : Icons.space_dashboard_outlined;
+    case SiteSection.company:
+      return selected ? Icons.business_rounded : Icons.business_outlined;
     case SiteSection.myCargos:
       return selected ? Icons.add_box_rounded : Icons.add_box_outlined;
     case SiteSection.cargos:
@@ -898,18 +971,84 @@ IconData _sectionIcon(SiteSection section, {required bool selected}) {
     case SiteSection.users:
       return selected ? Icons.badge_rounded : Icons.badge_outlined;
     case SiteSection.favorites:
-      return selected ? Icons.star_rounded : Icons.star_border_rounded;
+      return selected ? Icons.check_circle_rounded : Icons.check_circle_outline_rounded;
     case SiteSection.activity:
       return selected ? Icons.manage_history_rounded : Icons.history_rounded;
     case SiteSection.findTransport:
-      return selected ? Icons.local_shipping_rounded : Icons.local_shipping_outlined;
+      return selected
+          ? Icons.local_shipping_rounded
+          : Icons.local_shipping_outlined;
     case SiteSection.myTransport:
       return selected ? Icons.commute_rounded : Icons.commute_outlined;
+    case SiteSection.insurance:
+      return selected ? Icons.verified_user_rounded : Icons.verified_user_outlined;
+    case SiteSection.legal:
+      return selected ? Icons.gavel_rounded : Icons.gavel_outlined;
+    case SiteSection.support:
+      return selected ? Icons.support_agent_rounded : Icons.support_agent_outlined;
     case SiteSection.admin:
       return selected
           ? Icons.admin_panel_settings_rounded
           : Icons.admin_panel_settings_outlined;
     case SiteSection.sync:
       return selected ? Icons.sync_rounded : Icons.sync_outlined;
+  }
+}
+
+class _PlaceholderSection extends StatelessWidget {
+  final String title;
+  final String description;
+
+  const _PlaceholderSection({
+    required this.title,
+    required this.description,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: AppCard(
+        constraints: const BoxConstraints(maxWidth: 500),
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.construction_rounded, size: 64, color: Colors.orange),
+            const SizedBox(height: 24),
+            Text(
+              'Раздел в разработке',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              description,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 32),
+            AppButton(
+              label: 'Вернуться в кабинет',
+              onPressed: () {
+                final state = context.findAncestorStateOfType<_SiteDashboardState>();
+                state?.setState(() => state._section = SiteSection.overview);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

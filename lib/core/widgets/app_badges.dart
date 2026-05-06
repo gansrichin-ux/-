@@ -92,11 +92,13 @@ class NotificationBadge extends StatelessWidget {
 class RouteBadge extends StatelessWidget {
   final String from;
   final String to;
+  final double fontSize;
 
   const RouteBadge({
     super.key,
     required this.from,
     required this.to,
+    this.fontSize = 13,
   });
 
   @override
@@ -108,19 +110,32 @@ class RouteBadge extends StatelessWidget {
         Flexible(
           child: Text(
             from,
-            style: AppTextStyles.label,
+            style: AppTextStyles.label.copyWith(
+              fontSize: fontSize,
+              fontWeight: FontWeight.w700,
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
         ),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 8.0),
-          child: Icon(Icons.arrow_forward_rounded, size: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6.0),
+          child: Text(
+            '→',
+            style: TextStyle(
+              fontSize: fontSize + 2,
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
+              fontWeight: FontWeight.w400,
+            ),
+          ),
         ),
         Flexible(
           child: Text(
             to,
-            style: AppTextStyles.label,
+            style: AppTextStyles.label.copyWith(
+              fontSize: fontSize,
+              fontWeight: FontWeight.w700,
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
