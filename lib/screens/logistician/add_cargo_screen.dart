@@ -39,7 +39,13 @@ class _AddCargoScreenState extends State<AddCargoScreen> {
   final List<XFile> _selectedPhotos = [];
 
   final List<String> _bodyTypeOptions = TruckBodyTypes.labels.values.toList();
-  final List<String> _truckTypeOptions = ['Автовоз', 'Газель', 'Трал', 'Микроавтобус', 'Легковая'];
+  final List<String> _truckTypeOptions = [
+    'Автовоз',
+    'Газель',
+    'Трал',
+    'Микроавтобус',
+    'Легковая'
+  ];
 
   @override
   void dispose() {
@@ -76,7 +82,9 @@ class _AddCargoScreenState extends State<AddCargoScreen> {
         to: _toController.text.trim(),
         status: CargoStatus.published,
         ownerId: ownerId,
-        description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
+        description: _descriptionController.text.trim().isEmpty
+            ? null
+            : _descriptionController.text.trim(),
         weightKg: double.tryParse(_weightController.text),
         volumeM3: double.tryParse(_volumeController.text),
         price: double.tryParse(_priceController.text),
@@ -93,7 +101,9 @@ class _AddCargoScreenState extends State<AddCargoScreen> {
       );
 
       // 1. Save cargo
-      final docRef = await FirebaseFirestore.instance.collection('cargos').add(cargo.toFirestoreMap());
+      final docRef = await FirebaseFirestore.instance
+          .collection('cargos')
+          .add(cargo.toFirestoreMap());
       final cargoId = docRef.id;
 
       // 2. Upload photos
@@ -115,7 +125,8 @@ class _AddCargoScreenState extends State<AddCargoScreen> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Ошибка: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -153,7 +164,8 @@ class _AddCargoScreenState extends State<AddCargoScreen> {
                   labelText: 'Что везем? *',
                   prefixIcon: Icon(Icons.inventory_2_rounded),
                 ),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Укажите название' : null,
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Укажите название' : null,
               ),
               const SizedBox(height: 12),
               _buildTruckTypeDropdown(),
@@ -162,18 +174,24 @@ class _AddCargoScreenState extends State<AddCargoScreen> {
                 controller: _fromController,
                 decoration: const InputDecoration(
                   labelText: 'Откуда *',
-                  prefixIcon: Icon(Icons.trip_origin_rounded, color: Colors.blue),
+                  prefixIcon:
+                      Icon(Icons.trip_origin_rounded, color: Colors.blue),
                 ),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Укажите пункт погрузки' : null,
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'Укажите пункт погрузки'
+                    : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _toController,
                 decoration: const InputDecoration(
                   labelText: 'Куда *',
-                  prefixIcon: Icon(Icons.location_on_rounded, color: Colors.orange),
+                  prefixIcon:
+                      Icon(Icons.location_on_rounded, color: Colors.orange),
                 ),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Укажите пункт выгрузки' : null,
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'Укажите пункт выгрузки'
+                    : null,
               ),
               const SizedBox(height: 28),
               _label('Параметры груза'),
@@ -183,16 +201,22 @@ class _AddCargoScreenState extends State<AddCargoScreen> {
                   Expanded(
                     child: TextFormField(
                       controller: _weightController,
-                      decoration: const InputDecoration(labelText: 'Вес, т', prefixIcon: Icon(Icons.scale_rounded)),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(
+                          labelText: 'Вес, т',
+                          prefixIcon: Icon(Icons.scale_rounded)),
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: TextFormField(
                       controller: _volumeController,
-                      decoration: const InputDecoration(labelText: 'Объем, м³', prefixIcon: Icon(Icons.view_in_ar_rounded)),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(
+                          labelText: 'Объем, м³',
+                          prefixIcon: Icon(Icons.view_in_ar_rounded)),
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
                     ),
                   ),
                 ],
@@ -205,7 +229,9 @@ class _AddCargoScreenState extends State<AddCargoScreen> {
                   Expanded(
                     child: TextFormField(
                       controller: _carCountController,
-                      decoration: const InputDecoration(labelText: 'Машин', prefixIcon: Icon(Icons.numbers_rounded)),
+                      decoration: const InputDecoration(
+                          labelText: 'Машин',
+                          prefixIcon: Icon(Icons.numbers_rounded)),
                       keyboardType: TextInputType.number,
                     ),
                   ),
@@ -224,7 +250,9 @@ class _AddCargoScreenState extends State<AddCargoScreen> {
                     flex: 3,
                     child: TextFormField(
                       controller: _priceController,
-                      decoration: const InputDecoration(labelText: 'Ставка', prefixIcon: Icon(Icons.payments_rounded)),
+                      decoration: const InputDecoration(
+                          labelText: 'Ставка',
+                          prefixIcon: Icon(Icons.payments_rounded)),
                       keyboardType: TextInputType.number,
                     ),
                   ),
@@ -234,7 +262,10 @@ class _AddCargoScreenState extends State<AddCargoScreen> {
                     child: DropdownButtonFormField<String>(
                       value: _selectedCurrency,
                       decoration: const InputDecoration(labelText: 'Валюта'),
-                      items: ['₸', '₽', '$', '€'].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                      items: ['₸', '₽', r'$', '€']
+                          .map(
+                              (c) => DropdownMenuItem(value: c, child: Text(c)))
+                          .toList(),
                       onChanged: (v) => setState(() => _selectedCurrency = v!),
                     ),
                   ),
@@ -267,7 +298,8 @@ class _AddCargoScreenState extends State<AddCargoScreen> {
                     label: const Text('Создать заявку'),
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      textStyle: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
@@ -275,7 +307,9 @@ class _AddCargoScreenState extends State<AddCargoScreen> {
               Center(
                 child: TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('ОТМЕНА', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                  child: const Text('ОТМЕНА',
+                      style: TextStyle(
+                          color: Colors.grey, fontWeight: FontWeight.bold)),
                 ),
               ),
               const SizedBox(height: 40),
@@ -289,8 +323,12 @@ class _AddCargoScreenState extends State<AddCargoScreen> {
   Widget _buildTruckTypeDropdown() {
     return DropdownButtonFormField<String>(
       value: _selectedTruckType,
-      decoration: const InputDecoration(labelText: 'Тип транспорта', prefixIcon: Icon(Icons.local_shipping_rounded)),
-      items: _truckTypeOptions.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+      decoration: const InputDecoration(
+          labelText: 'Тип транспорта',
+          prefixIcon: Icon(Icons.local_shipping_rounded)),
+      items: _truckTypeOptions
+          .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+          .toList(),
       onChanged: (v) => setState(() => _selectedTruckType = v),
     );
   }
@@ -298,8 +336,11 @@ class _AddCargoScreenState extends State<AddCargoScreen> {
   Widget _buildBodyTypeDropdown() {
     return DropdownButtonFormField<String>(
       value: _selectedBodyType,
-      decoration: const InputDecoration(labelText: 'Кузов', prefixIcon: Icon(Icons.inventory_rounded)),
-      items: _bodyTypeOptions.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+      decoration: const InputDecoration(
+          labelText: 'Кузов', prefixIcon: Icon(Icons.inventory_rounded)),
+      items: _bodyTypeOptions
+          .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+          .toList(),
       onChanged: (v) => setState(() => _selectedBodyType = v),
     );
   }
@@ -307,7 +348,8 @@ class _AddCargoScreenState extends State<AddCargoScreen> {
   Widget _buildShipmentTypeDropdown() {
     return DropdownButtonFormField<String>(
       value: _selectedShipmentType,
-      decoration: const InputDecoration(labelText: 'Погрузка', prefixIcon: Icon(Icons.move_to_inbox_rounded)),
+      decoration: const InputDecoration(
+          labelText: 'Погрузка', prefixIcon: Icon(Icons.move_to_inbox_rounded)),
       items: const [
         DropdownMenuItem(value: 'full', child: Text('Полная машина')),
         DropdownMenuItem(value: 'partial', child: Text('Догруз')),
@@ -320,8 +362,12 @@ class _AddCargoScreenState extends State<AddCargoScreen> {
     return InkWell(
       onTap: _selectLoadingDate,
       child: InputDecorator(
-        decoration: const InputDecoration(labelText: 'Дата погрузки', prefixIcon: Icon(Icons.calendar_today_rounded)),
-        child: Text(_loadingDate == null ? 'Выберите дату' : DateFormat('dd.MM.yyyy').format(_loadingDate!)),
+        decoration: const InputDecoration(
+            labelText: 'Дата погрузки',
+            prefixIcon: Icon(Icons.calendar_today_rounded)),
+        child: Text(_loadingDate == null
+            ? 'Выберите дату'
+            : DateFormat('dd.MM.yyyy').format(_loadingDate!)),
       ),
     );
   }
@@ -365,7 +411,8 @@ class _AddCargoScreenState extends State<AddCargoScreen> {
           children: [
             const Icon(Icons.camera_alt_rounded, size: 20, color: Colors.grey),
             const SizedBox(width: 8),
-            const Text('Фото груза', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('Фото груза',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             const Spacer(),
             TextButton.icon(
               onPressed: _pickPhotos,
@@ -387,17 +434,20 @@ class _AddCargoScreenState extends State<AddCargoScreen> {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.network(_selectedPhotos[index].path, width: 100, height: 100, fit: BoxFit.cover),
+                        child: Image.network(_selectedPhotos[index].path,
+                            width: 100, height: 100, fit: BoxFit.cover),
                       ),
                       Positioned(
                         top: 4,
                         right: 4,
                         child: GestureDetector(
-                          onTap: () => setState(() => _selectedPhotos.removeAt(index)),
+                          onTap: () =>
+                              setState(() => _selectedPhotos.removeAt(index)),
                           child: const CircleAvatar(
                             radius: 12,
                             backgroundColor: Colors.red,
-                            child: Icon(Icons.close, size: 16, color: Colors.white),
+                            child: Icon(Icons.close,
+                                size: 16, color: Colors.white),
                           ),
                         ),
                       ),

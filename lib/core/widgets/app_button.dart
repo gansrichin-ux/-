@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_text_styles.dart';
 
@@ -28,7 +27,7 @@ class AppButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    
+
     Color backgroundColor;
     Color foregroundColor;
     BorderSide? side;
@@ -95,7 +94,8 @@ class AppButton extends StatelessWidget {
       foregroundColor: foregroundColor,
       elevation: 0,
       shadowColor: Colors.transparent,
-      padding: padding ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding:
+          padding ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       shape: RoundedRectangleBorder(
         borderRadius: AppRadius.mediumRadius,
         side: side ?? BorderSide.none,
@@ -112,7 +112,7 @@ class AppButton extends StatelessWidget {
     if (isFullWidth) {
       return SizedBox(width: double.infinity, child: button);
     }
-    
+
     return button;
   }
 }
@@ -156,7 +156,7 @@ class AppIconButton extends StatelessWidget {
         minimumSize: const Size(44, 44),
       ),
     );
-    
+
     return btn;
   }
 }

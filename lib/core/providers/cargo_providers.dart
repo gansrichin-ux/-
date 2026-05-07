@@ -1,4 +1,5 @@
 ﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../config/cargo_statuses.dart';
 import '../../repositories/cargo_repository.dart';
 import '../../models/cargo_model.dart';
 import 'auth_providers.dart';
@@ -196,10 +197,10 @@ final cargoStatsProvider = Provider<CargoStats>((ref) {
 
   return CargoStats(
     total: allCargos.length,
-    newCount: allCargos.where((c) => c.status == 'РќРѕРІС‹Р№').length,
-    inTransit: allCargos.where((c) => c.status == 'Р’ РїСѓС‚Рё').length,
-    completed: allCargos.where((c) => c.status == 'Р”РѕСЃС‚Р°РІР»РµРЅ').length,
-    cancelled: allCargos.where((c) => c.status == 'РћС‚РјРµРЅРµРЅ').length,
+    newCount: allCargos.where((c) => c.status == CargoStatus.published).length,
+    inTransit: allCargos.where((c) => c.status == CargoStatus.inTransit).length,
+    completed: allCargos.where((c) => c.status == CargoStatus.delivered).length,
+    cancelled: allCargos.where((c) => c.status == CargoStatus.cancelled).length,
   );
 });
 

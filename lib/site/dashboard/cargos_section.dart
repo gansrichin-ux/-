@@ -78,7 +78,8 @@ class CargosSection extends StatelessWidget {
           onQueryChanged: onQueryChanged,
           onStatusChanged: onStatusChanged,
           onFiltersChanged: onFiltersChanged,
-          onAddCargo: !user.canCreateCargo || !showAddButton ? null : onAddCargo,
+          onAddCargo:
+              !user.canCreateCargo || !showAddButton ? null : onAddCargo,
         ),
         if (title != null)
           _CargoSectionHeader(
@@ -98,8 +99,9 @@ class CargosSection extends StatelessWidget {
                         ? (emptyMessage ?? 'Создайте первую заявку.')
                         : 'Измените поиск или статус.',
                     actionLabel: user.canCreateCargo ? 'Новый груз' : null,
-                    onAction:
-                        !user.canCreateCargo || !showAddButton ? null : onAddCargo,
+                    onAction: !user.canCreateCargo || !showAddButton
+                        ? null
+                        : onAddCargo,
                   ),
                 )
               : ListView.separated(
@@ -210,7 +212,8 @@ class _CargoToolbar extends StatelessWidget {
             children: [
               Expanded(child: _buildSearch()),
               const SizedBox(width: 14),
-              _StatusChips(status: status, user: user, onChanged: onStatusChanged),
+              _StatusChips(
+                  status: status, user: user, onChanged: onStatusChanged),
               if (onAddCargo != null) ...[
                 const SizedBox(width: 14),
                 FilledButton.icon(
@@ -297,8 +300,8 @@ class _StatusFilter extends StatelessWidget {
       items: [
         const DropdownMenuItem<String>(value: 'Все', child: Text('Все')),
         ...CargoStatus.values.map(
-          (status) =>
-              DropdownMenuItem<String>(value: status, child: Text(CargoStatus.getDisplayStatus(status))),
+          (status) => DropdownMenuItem<String>(
+              value: status, child: Text(CargoStatus.getDisplayStatus(status))),
         ),
       ],
       onChanged: (value) => onChanged(value == 'Все' ? null : value),
@@ -311,7 +314,8 @@ class _StatusChips extends StatefulWidget {
   final UserModel user;
   final ValueChanged<String?> onChanged;
 
-  const _StatusChips({required this.status, required this.user, required this.onChanged});
+  const _StatusChips(
+      {required this.status, required this.user, required this.onChanged});
 
   @override
   State<_StatusChips> createState() => _StatusChipsState();
@@ -336,7 +340,10 @@ class _StatusChipsState extends State<_StatusChips> {
       CargoStatus.delivered,
       CargoStatus.cancelled,
     ];
-    final options = <String?>[null, ...(isAdmin ? CargoStatus.values : publicStatuses)];
+    final options = <String?>[
+      null,
+      ...(isAdmin ? CargoStatus.values : publicStatuses)
+    ];
 
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 520),
@@ -350,14 +357,16 @@ class _StatusChipsState extends State<_StatusChips> {
           child: Row(
             children: options.map((value) {
               final selected = value == widget.status;
-              final label = value ?? 'Все';
+              final label =
+                  value == null ? 'Все' : CargoStatus.getDisplayStatus(value);
               return Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: ChoiceChip(
                   avatar: selected
-                      ? Icon(Icons.check_rounded, size: 16, color: colors.primary)
+                      ? Icon(Icons.check_rounded,
+                          size: 16, color: colors.primary)
                       : null,
-                  label: Text(value == null ? 'Все' : CargoStatus.getDisplayStatus(value)),
+                  label: Text(label),
                   selected: selected,
                   showCheckmark: false,
                   onSelected: (_) => widget.onChanged(value),
@@ -391,7 +400,9 @@ class _AdvancedCargoFilters extends StatelessWidget {
       initiallyExpanded: filters.isActive,
       leading: Icon(Icons.tune_rounded, color: colors.primary),
       title: Text(
-        filters.isActive ? 'Активные фильтры (настроено)' : 'Расширенные фильтры',
+        filters.isActive
+            ? 'Активные фильтры (настроено)'
+            : 'Расширенные фильтры',
         style: const TextStyle(fontWeight: FontWeight.w900),
       ),
       trailing: filters.isActive
@@ -420,13 +431,21 @@ class _AdvancedCargoFilters extends StatelessWidget {
                       icon: Icons.local_shipping_outlined,
                       value: filters.bodyType,
                       items: ['', ...bodyTypes],
-                      onChanged: (v) => onChanged(filters.copyWith(bodyType: v ?? '')),
+                      onChanged: (v) =>
+                          onChanged(filters.copyWith(bodyType: v ?? '')),
                     ),
                     _dropdownField(
                       label: 'Тип транспорта',
                       icon: Icons.local_shipping_rounded,
                       value: filters.truckType ?? '',
-                      items: ['', 'Автовоз', 'Газель', 'Трал', 'Микроавтобус', 'Легковая'],
+                      items: [
+                        '',
+                        'Автовоз',
+                        'Газель',
+                        'Трал',
+                        'Микроавтобус',
+                        'Легковая'
+                      ],
                       onChanged: (v) => onChanged(filters.copyWith(
                         truckType: v?.isEmpty == true ? null : v,
                         clearTruckType: v?.isEmpty == true,
@@ -436,12 +455,19 @@ class _AdvancedCargoFilters extends StatelessWidget {
                       label: 'Погрузка',
                       icon: Icons.layers_outlined,
                       value: filters.shipmentType ?? '',
-                      items: ['', 'full', 'partial', 'reload_possible', 'only_separate'],
+                      items: [
+                        '',
+                        'full',
+                        'partial',
+                        'reload_possible',
+                        'only_separate'
+                      ],
                       onChanged: (v) => onChanged(filters.copyWith(
                         shipmentType: v?.isEmpty == true ? null : v,
                         clearShipmentType: v?.isEmpty == true,
                       )),
-                      itemBuilder: (v) => v.isEmpty ? 'Любая' : _shipmentLabel(v),
+                      itemBuilder: (v) =>
+                          v.isEmpty ? 'Любая' : _shipmentLabel(v),
                     ),
                     _filterField(
                       label: 'Кол-во машин',
@@ -464,24 +490,30 @@ class _AdvancedCargoFilters extends StatelessWidget {
                       labelTo: 'до',
                       valFrom: filters.minWeight,
                       valTo: filters.maxWeight,
-                      onFrom: (v) => onChanged(filters.copyWith(minWeight: v, clearMinWeight: v == null)),
-                      onTo: (v) => onChanged(filters.copyWith(maxWeight: v, clearMaxWeight: v == null)),
+                      onFrom: (v) => onChanged(filters.copyWith(
+                          minWeight: v, clearMinWeight: v == null)),
+                      onTo: (v) => onChanged(filters.copyWith(
+                          maxWeight: v, clearMaxWeight: v == null)),
                     ),
                     _rangeField(
                       labelFrom: 'Объем от, м³',
                       labelTo: 'до',
                       valFrom: filters.minVolume,
                       valTo: filters.maxVolume,
-                      onFrom: (v) => onChanged(filters.copyWith(minVolume: v, clearMinVolume: v == null)),
-                      onTo: (v) => onChanged(filters.copyWith(maxVolume: v, clearMaxVolume: v == null)),
+                      onFrom: (v) => onChanged(filters.copyWith(
+                          minVolume: v, clearMinVolume: v == null)),
+                      onTo: (v) => onChanged(filters.copyWith(
+                          maxVolume: v, clearMaxVolume: v == null)),
                     ),
                     _rangeField(
                       labelFrom: 'Цена от',
                       labelTo: 'до',
                       valFrom: filters.minPrice,
                       valTo: filters.maxPrice,
-                      onFrom: (v) => onChanged(filters.copyWith(minPrice: v, clearMinPrice: v == null)),
-                      onTo: (v) => onChanged(filters.copyWith(maxPrice: v, clearMaxPrice: v == null)),
+                      onFrom: (v) => onChanged(filters.copyWith(
+                          minPrice: v, clearMinPrice: v == null)),
+                      onTo: (v) => onChanged(filters.copyWith(
+                          maxPrice: v, clearMaxPrice: v == null)),
                     ),
                     _datePickerField(context),
                   ],
@@ -491,13 +523,26 @@ class _AdvancedCargoFilters extends StatelessWidget {
                   spacing: 24,
                   runSpacing: 12,
                   children: [
-                    _switch('Без перевозчика', filters.onlyWithoutCarrier, (v) => onChanged(filters.copyWith(onlyWithoutCarrier: v))),
-                    _switch('Актуальные', filters.onlyActive, (v) => onChanged(filters.copyWith(onlyActive: v))),
-                    _switch('Срочные', filters.isUrgent, (v) => onChanged(filters.copyWith(isUrgent: v))),
-                    _switch('Гумпомощь', filters.isHumanitarian, (v) => onChanged(filters.copyWith(isHumanitarian: v))),
-                    _switch('С фото', filters.hasPhoto, (v) => onChanged(filters.copyWith(hasPhoto: v))),
-                    _switch('Договорная цена', filters.priceNegotiable, (v) => onChanged(filters.copyWith(priceNegotiable: v))),
-                    _switch('Готов', filters.isReady == true, (v) => onChanged(filters.copyWith(isReady: v, clearIsReady: !v))),
+                    _switch(
+                        'Без перевозчика',
+                        filters.onlyWithoutCarrier,
+                        (v) =>
+                            onChanged(filters.copyWith(onlyWithoutCarrier: v))),
+                    _switch('Актуальные', filters.onlyActive,
+                        (v) => onChanged(filters.copyWith(onlyActive: v))),
+                    _switch('Срочные', filters.isUrgent,
+                        (v) => onChanged(filters.copyWith(isUrgent: v))),
+                    _switch('Гумпомощь', filters.isHumanitarian,
+                        (v) => onChanged(filters.copyWith(isHumanitarian: v))),
+                    _switch('С фото', filters.hasPhoto,
+                        (v) => onChanged(filters.copyWith(hasPhoto: v))),
+                    _switch('Договорная цена', filters.priceNegotiable,
+                        (v) => onChanged(filters.copyWith(priceNegotiable: v))),
+                    _switch(
+                        'Готов',
+                        filters.isReady == true,
+                        (v) => onChanged(
+                            filters.copyWith(isReady: v, clearIsReady: !v))),
                   ],
                 ),
               ],
@@ -539,7 +584,8 @@ class _AdvancedCargoFilters extends StatelessWidget {
         ),
         if (!compact) ...[
           const SizedBox(width: 16),
-          _switch('В обе стороны', filters.isTwoWaySearch, (v) => onChanged(filters.copyWith(isTwoWaySearch: v))),
+          _switch('В обе стороны', filters.isTwoWaySearch,
+              (v) => onChanged(filters.copyWith(isTwoWaySearch: v))),
         ],
       ],
     );
@@ -588,21 +634,30 @@ class _AdvancedCargoFilters extends StatelessWidget {
         labelText: label,
         prefixIcon: Icon(icon, size: 20),
       ),
-      items: items.map((t) => DropdownMenuItem(
-        value: t, 
-        child: Text(itemBuilder != null ? itemBuilder(t) : (t.isEmpty ? 'Любой' : t)),
-      )).toList(),
+      items: items
+          .map((t) => DropdownMenuItem(
+                value: t,
+                child: Text(itemBuilder != null
+                    ? itemBuilder(t)
+                    : (t.isEmpty ? 'Любой' : t)),
+              ))
+          .toList(),
       onChanged: onChanged,
     );
   }
 
   String _shipmentLabel(String type) {
     switch (type) {
-      case 'full': return 'Полная машина';
-      case 'partial': return 'Догруз';
-      case 'reload_possible': return 'Возможен догруз';
-      case 'only_separate': return 'Только отдельная';
-      default: return type;
+      case 'full':
+        return 'Полная машина';
+      case 'partial':
+        return 'Догруз';
+      case 'reload_possible':
+        return 'Возможен догруз';
+      case 'only_separate':
+        return 'Только отдельная';
+      default:
+        return type;
     }
   }
 
@@ -646,7 +701,8 @@ class _AdvancedCargoFilters extends StatelessWidget {
           firstDate: DateTime.now().subtract(const Duration(days: 30)),
           lastDate: DateTime.now().add(const Duration(days: 365)),
         );
-        onChanged(filters.copyWith(loadingDate: picked, clearLoadingDate: picked == null));
+        onChanged(filters.copyWith(
+            loadingDate: picked, clearLoadingDate: picked == null));
       },
       child: InputDecorator(
         decoration: const InputDecoration(
@@ -654,7 +710,9 @@ class _AdvancedCargoFilters extends StatelessWidget {
           prefixIcon: Icon(Icons.calendar_today_rounded, size: 20),
         ),
         child: Text(
-          filters.loadingDate == null ? 'Любая' : DateFormat('dd.MM.yyyy').format(filters.loadingDate!),
+          filters.loadingDate == null
+              ? 'Любая'
+              : DateFormat('dd.MM.yyyy').format(filters.loadingDate!),
         ),
       ),
     );
@@ -674,7 +732,8 @@ class _AdvancedCargoFilters extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        Text(label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+        Text(label,
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
       ],
     );
   }
@@ -814,7 +873,8 @@ class CargoWebCard extends StatelessWidget {
                     if (cargo.loadingDate != null)
                       _InfoChip(
                         icon: Icons.event_available_rounded,
-                        label: DateFormat('dd.MM.yyyy').format(cargo.loadingDate!),
+                        label:
+                            DateFormat('dd.MM.yyyy').format(cargo.loadingDate!),
                       ),
                     if (cargo.weightKg != null)
                       _InfoChip(
@@ -869,7 +929,8 @@ class CargoWebCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: colors.surfaceContainerHighest.withOpacity(0.35),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: colors.outlineVariant.withOpacity(0.2)),
+                border:
+                    Border.all(color: colors.outlineVariant.withOpacity(0.2)),
               ),
               child: Text(
                 cargo.description!,
@@ -910,7 +971,8 @@ class CargoWebCard extends StatelessWidget {
       );
     }
 
-    final formattedPrice = NumberFormat.decimalPattern('ru').format(cargo.price);
+    final formattedPrice =
+        NumberFormat.decimalPattern('ru').format(cargo.price);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
@@ -974,10 +1036,11 @@ class CargoWebCard extends StatelessWidget {
     final isAssignedCarrier = cargo.carrierId == user.uid;
     final canManage = isOwner || isAssignedCarrier;
 
-    final myApplication = applications.cast<CargoApplicationModel?>().firstWhere(
-          (item) => item?.applicantId == user.uid,
-          orElse: () => null,
-        );
+    final myApplication =
+        applications.cast<CargoApplicationModel?>().firstWhere(
+              (item) => item?.applicantId == user.uid,
+              orElse: () => null,
+            );
     final pendingCount = applications.where((item) => item.isPending).length;
 
     final widgets = <Widget>[
@@ -989,10 +1052,19 @@ class CargoWebCard extends StatelessWidget {
       ),
       const SizedBox(width: 12, height: 12),
       AppButton(
-        label: cargo.photos.isNotEmpty ? 'Фото (${cargo.photos.length})' : 'Фото груза',
+        label: cargo.photos.isNotEmpty
+            ? 'Фото (${cargo.photos.length})'
+            : 'Фото груза',
         icon: Icons.photo_library_outlined,
         variant: AppButtonVariant.secondary,
         onPressed: () => _showPhotosDialog(context),
+      ),
+      const SizedBox(width: 12, height: 12),
+      AppButton(
+        label: 'Документы',
+        icon: Icons.attach_file_rounded,
+        variant: AppButtonVariant.secondary,
+        onPressed: () => _showDocumentsDialog(context),
       ),
     ];
 
@@ -1495,7 +1567,6 @@ class _CargoDocumentTile extends StatelessWidget {
     );
   }
 }
-
 
 class _CargoPhotosDialog extends StatelessWidget {
   final CargoModel cargo;

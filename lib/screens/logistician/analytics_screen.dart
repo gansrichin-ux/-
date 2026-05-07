@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/config/cargo_statuses.dart';
 import '../../core/providers/analytics_providers.dart';
 
 const _bg = Color(0xFF0B1220);
@@ -38,11 +39,11 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // РџРµСЂРёРѕРґ Р°РЅР°Р»РёС‚РёРєРё
+              // Период аналитики
               _buildPeriodSelector(),
               const SizedBox(height: 16),
 
-              // РћСЃРЅРѕРІРЅР°СЏ СЃС‚Р°С‚РёСЃС‚РёРєР°
+              // Основная статистика
               if (analyticsAsync.when(
                 data: (data) => true,
                 loading: () => false,
@@ -51,7 +52,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                 _buildMainStats(analyticsAsync),
               const SizedBox(height: 16),
 
-              // Р“СЂР°С„РёРєРё Рё РґРёР°РіСЂР°РјРјС‹
+              // Графики и диаграммы
               if (statusChartAsync.when(
                 data: (data) => true,
                 loading: () => false,
@@ -60,7 +61,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                 _buildStatusChart(statusChartAsync),
               const SizedBox(height: 16),
 
-              // РџРѕРїСѓР»СЏСЂРЅС‹Рµ РјР°СЂС€СЂСѓС‚С‹
+              // Популярные маршруты
               if (routesAsync.when(
                 data: (data) => true,
                 loading: () => false,
@@ -69,7 +70,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                 _buildPopularRoutes(routesAsync),
               const SizedBox(height: 16),
 
-              // РўРѕРї РєР»РёРµРЅС‚С‹
+              // Топ клиенты
               if (analyticsAsync.when(
                 data: (data) => true,
                 loading: () => false,
@@ -102,7 +103,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'РџРµСЂРёРѕРґ Р°РЅР°Р»РёР·Р°',
+                  'Период анализа',
                   style: TextStyle(fontSize: 12, color: _mutedText),
                 ),
                 Text(
@@ -129,18 +130,17 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
             itemBuilder: (context) => [
               const PopupMenuItem(
                 value: ReportPeriod.week,
-                child: Text('РќРµРґРµР»СЏ'),
+                child: Text('Неделя'),
               ),
               const PopupMenuItem(
                 value: ReportPeriod.month,
-                child: Text('РњРµСЃСЏС†'),
+                child: Text('Месяц'),
               ),
               const PopupMenuItem(
                 value: ReportPeriod.quarter,
-                child: Text('РљРІР°СЂС‚Р°Р»'),
+                child: Text('Квартал'),
               ),
-              const PopupMenuItem(
-                  value: ReportPeriod.year, child: Text('Р“РѕРґ')),
+              const PopupMenuItem(value: ReportPeriod.year, child: Text('Год')),
             ],
           ),
           Container(
@@ -169,31 +169,31 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   Widget _buildMainStats(AsyncValue<AnalyticsData> analyticsAsync) {
     return analyticsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stack) => Center(child: Text('РћС€РёР±РєР°: $error')),
+      error: (error, stack) => Center(child: Text('Ошибка: $error')),
       data: (analytics) => Column(
         children: [
-          // РЎС‚Р°С‚РёСЃС‚РёРєР° РіСЂСѓР·РѕРІ
-          _buildStatsCard('РЎС‚Р°С‚РёСЃС‚РёРєР° РіСЂСѓР·РѕРІ', [
+          // Статистика грузов
+          _buildStatsCard('Статистика грузов', [
             _buildStatItem(
-              'Р’СЃРµРіРѕ РіСЂСѓР·РѕРІ',
+              'Всего грузов',
               '${analytics.cargoStats['total']}',
               Icons.local_shipping,
               const Color(0xFF3B82F6),
             ),
             _buildStatItem(
-              'Р”РѕСЃС‚Р°РІР»РµРЅРѕ',
+              'Доставлено',
               '${analytics.cargoStats['delivered']}',
               Icons.check_circle,
               const Color(0xFF22C55E),
             ),
             _buildStatItem(
-              'Р’ РїСѓС‚Рё',
+              'В пути',
               '${analytics.cargoStats['inTransit']}',
               Icons.directions_car,
               const Color(0xFFF59E0B),
             ),
             _buildStatItem(
-              'РќРѕРІС‹Рµ',
+              'Новые',
               '${analytics.cargoStats['new']}',
               Icons.add_circle,
               const Color(0xFF8B5CF6),
@@ -201,28 +201,28 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
           ]),
           const SizedBox(height: 16),
 
-          // РЎС‚Р°С‚РёСЃС‚РёРєР° РєР»РёРµРЅС‚РѕРІ
-          _buildStatsCard('РЎС‚Р°С‚РёСЃС‚РёРєР° РєР»РёРµРЅС‚РѕРІ', [
+          // Статистика клиентов
+          _buildStatsCard('Статистика клиентов', [
             _buildStatItem(
-              'Р’СЃРµРіРѕ РєР»РёРµРЅС‚РѕРІ',
+              'Всего клиентов',
               '${analytics.clientStats['total']}',
               Icons.people,
               const Color(0xFF6366F1),
             ),
             _buildStatItem(
-              'РђРєС‚РёРІРЅС‹Рµ',
+              'Активные',
               '${analytics.clientStats['active']}',
               Icons.person,
               const Color(0xFF22C55E),
             ),
             _buildStatItem(
-              'Р”РѕС…РѕРґ',
+              'Доход',
               '${(analytics.clientStats['totalRevenue'] as double).toStringAsFixed(0)} ?',
               Icons.attach_money,
               const Color(0xFF10B981),
             ),
             _buildStatItem(
-              'Р—Р°РєР°Р·С‹',
+              'Заказы',
               '${analytics.clientStats['totalOrders']}',
               Icons.shopping_cart,
               const Color(0xFFF59E0B),
@@ -299,7 +299,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   Widget _buildStatusChart(AsyncValue<Map<String, int>> statusChartAsync) {
     return statusChartAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stack) => Center(child: Text('РћС€РёР±РєР°: $error')),
+      error: (error, stack) => Center(child: Text('Ошибка: $error')),
       data: (statusData) => Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
@@ -326,7 +326,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                 ),
                 const SizedBox(width: 12),
                 const Text(
-                  'РЎС‚Р°С‚СѓСЃС‹ РіСЂСѓР·РѕРІ',
+                  'Статусы грузов',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -353,7 +353,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          entry.key,
+                          CargoStatus.getDisplayStatus(entry.key),
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
@@ -401,7 +401,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   ) {
     return routesAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stack) => Center(child: Text('РћС€РёР±РєР°: $error')),
+      error: (error, stack) => Center(child: Text('Ошибка: $error')),
       data: (routes) => Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
@@ -428,7 +428,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                 ),
                 const SizedBox(width: 12),
                 const Text(
-                  'РџРѕРїСѓР»СЏСЂРЅС‹Рµ РјР°СЂС€СЂСѓС‚С‹',
+                  'Популярные маршруты',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
@@ -485,7 +485,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   Widget _buildTopClients(AsyncValue<AnalyticsData> analyticsAsync) {
     return analyticsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stack) => Center(child: Text('РћС€РёР±РєР°: $error')),
+      error: (error, stack) => Center(child: Text('Ошибка: $error')),
       data: (analytics) => Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
@@ -512,7 +512,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                 ),
                 const SizedBox(width: 12),
                 const Text(
-                  'РўРѕРї РєР»РёРµРЅС‚С‹',
+                  'Топ клиенты',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
@@ -550,7 +550,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                                 ),
                               ),
                               Text(
-                                '${client.totalOrders} Р·Р°РєР°Р·РѕРІ',
+                                '${client.totalOrders} заказов',
                                 style: const TextStyle(
                                   fontSize: 12,
                                   color: _mutedText,
@@ -580,18 +580,18 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   String _getPeriodText(ReportPeriod period) {
     switch (period) {
       case ReportPeriod.week:
-        return 'РџРѕСЃР»РµРґРЅСЏСЏ РЅРµРґРµР»СЏ';
+        return 'Последняя неделя';
       case ReportPeriod.month:
-        return 'РџРѕСЃР»РµРґРЅРёР№ РјРµСЃСЏС†';
+        return 'Последний месяц';
       case ReportPeriod.quarter:
-        return 'РџРѕСЃР»РµРґРЅРёР№ РєРІР°СЂС‚Р°Р»';
+        return 'Последний квартал';
       case ReportPeriod.year:
-        return 'РџРѕСЃР»РµРґРЅРёР№ РіРѕРґ';
+        return 'Последний год';
     }
   }
 
   String _getPeriodGrowth(ReportPeriod period) {
-    // Р—Р°РіР»СѓС€РєР° СЂРѕСЃС‚Р°
+    // Заглушка роста
     switch (period) {
       case ReportPeriod.week:
         return '+12.5%';
@@ -606,13 +606,13 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
 
   Color _getStatusColor(String status) {
     switch (status) {
-      case 'РќРѕРІС‹Р№':
+      case CargoStatus.published:
         return const Color(0xFF22C55E);
-      case 'Р’ РїСѓС‚Рё':
+      case CargoStatus.inTransit:
         return const Color(0xFF3B82F6);
-      case 'Р”РѕСЃС‚Р°РІР»РµРЅ':
+      case CargoStatus.delivered:
         return const Color(0xFF10B981);
-      case 'РћС‚РјРµРЅРµРЅ':
+      case CargoStatus.cancelled:
         return const Color(0xFFEF4444);
       default:
         return Colors.grey;

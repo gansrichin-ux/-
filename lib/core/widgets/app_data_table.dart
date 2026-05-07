@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_breakpoints.dart';
 import '../theme/app_text_styles.dart';
-import 'app_card.dart';
 
 class AppDataColumn {
   final String label;
@@ -37,7 +36,8 @@ class AppDataTable extends StatelessWidget {
         physics: const NeverScrollableScrollPhysics(),
         itemCount: rows.length,
         separatorBuilder: (context, index) => const SizedBox(height: 12),
-        itemBuilder: (context, index) => mobileCardBuilder!(context, rows[index]),
+        itemBuilder: (context, index) =>
+            mobileCardBuilder!(context, rows[index]),
       );
     }
 
@@ -47,14 +47,18 @@ class AppDataTable extends StatelessWidget {
         headingTextStyle: AppTextStyles.label,
         dataTextStyle: AppTextStyles.bodyMedium,
         showCheckboxColumn: false,
-        columns: columns.map((c) => DataColumn(
-          label: Text(c.label),
-          numeric: c.isNumeric,
-        )).toList(),
-        rows: rows.map((r) => DataRow(
-          onSelectChanged: r.onTap != null ? (_) => r.onTap!() : null,
-          cells: r.cells.map((cell) => DataCell(cell)).toList(),
-        )).toList(),
+        columns: columns
+            .map((c) => DataColumn(
+                  label: Text(c.label),
+                  numeric: c.isNumeric,
+                ))
+            .toList(),
+        rows: rows
+            .map((r) => DataRow(
+                  onSelectChanged: r.onTap != null ? (_) => r.onTap!() : null,
+                  cells: r.cells.map((cell) => DataCell(cell)).toList(),
+                ))
+            .toList(),
       ),
     );
   }

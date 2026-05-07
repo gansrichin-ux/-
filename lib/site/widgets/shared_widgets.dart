@@ -3,9 +3,8 @@ part of '../../main_site.dart';
 class _PanelHeader extends StatelessWidget {
   final IconData icon;
   final String title;
-  final Widget? trailing;
 
-  const _PanelHeader({required this.icon, required this.title, this.trailing});
+  const _PanelHeader({required this.icon, required this.title});
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +20,6 @@ class _PanelHeader extends StatelessWidget {
             ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
           ),
         ),
-        if (trailing != null) trailing!,
       ],
     );
   }
@@ -67,7 +65,7 @@ class _InfoChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final chipColor = color ?? colors.onSurfaceVariant;
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
