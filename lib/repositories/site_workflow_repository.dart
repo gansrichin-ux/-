@@ -30,6 +30,12 @@ class SiteWorkflowRepository {
   CollectionReference<Map<String, dynamic>> get _reports =>
       _firestore.collection('userReports');
 
+  CollectionReference<Map<String, dynamic>> get _serviceRequests =>
+      _firestore.collection('serviceRequests');
+
+  CollectionReference<Map<String, dynamic>> get _companyProfiles =>
+      _firestore.collection('companyProfiles');
+
   Stream<List<CargoApplicationModel>> watchAllApplications() {
     return _applications.limit(300).snapshots().map((snap) {
       final items = snap.docs.map(CargoApplicationModel.fromFirestore).toList();
@@ -111,6 +117,88 @@ class SiteWorkflowRepository {
       items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return items;
     });
+  }
+
+  Stream<Map<String, dynamic>?> watchCompanyProfile(String uid) {
+    return _companyProfiles.doc(uid).snapshots().map((doc) {
+      if (!doc.exists) return null;
+      return doc.data();
+    });
+  }
+
+  Future<void> saveCompanyProfile({
+    required UserModel user,
+    required String organizationName,
+    required String businessType,
+    required String bin,
+    required String phone,
+    required String address,
+    required String description,
+  }) async {
+    await _companyProfiles.doc(user.uid).set({
+      'userId': user.uid,
+      'userName': user.displayName,
+      'organizationName': organizationName.trim(),
+      'businessType': businessType.trim(),
+      'bin': bin.trim(),
+      'phone': phone.trim(),
+      'address': address.trim(),
+      'description': description.trim(),
+      'updatedAt': FieldValue.serverTimestamp(),
+      'createdAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Stream<List<ServiceRequestModel>> watchServiceRequests(
+    String userId, {
+    String? type,
+  }) {
+    return _serviceRequests
+        .where('userId', isEqualTo: userId)
+        .limit(80)
+        .snapshots()
+        .map((snap) {
+      var items = snap.docs.map(ServiceRequestModel.fromFirestore).toList();
+      if (type != null) {
+        items = items.where((item) => item.type == type).toList();
+      }
+      items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return items;
+    });
+  }
+
+  Future<void> createServiceRequest({
+    required UserModel user,
+    required String type,
+    required String title,
+    required String message,
+    Map<String, Object?> metadata = const {},
+  }) async {
+    final ref = _serviceRequests.doc();
+    final batch = _firestore.batch();
+    batch.set(ref, {
+      'userId': user.uid,
+      'userName': user.displayName,
+      'type': type,
+      'title': title.trim(),
+      'message': message.trim(),
+      'metadata': metadata,
+      'status': 'open',
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    _addActivityToBatch(
+      batch,
+      title: _serviceTypeTitle(type),
+      body: title.trim().isEmpty ? message.trim() : title.trim(),
+      actor: user,
+      cargo: null,
+      type: 'service_request',
+      visibleTo: [user.uid],
+    );
+
+    await batch.commit();
   }
 
   Future<void> applyToCargo({
@@ -267,7 +355,9 @@ class SiteWorkflowRepository {
       _addNotificationToBatch(
         batch,
         userId: uid,
-        title: isDelivered ? 'Груз доставлен в пункт назначения' : 'Статус груза изменен',
+        title: isDelivered
+            ? 'Груз доставлен в пункт назначения'
+            : 'Статус груза изменен',
         body: isDelivered
             ? '"${cargo.title}" успешно доставлен в ${cargo.to}'
             : '"${cargo.title}" теперь: ${CargoStatus.getDisplayStatus(canonicalStatus)}',
@@ -279,7 +369,8 @@ class SiteWorkflowRepository {
     _addActivityToBatch(
       batch,
       title: 'Статус обновлен',
-      body: '"${cargo.title}" теперь: ${CargoStatus.getDisplayStatus(canonicalStatus)}',
+      body:
+          '"${cargo.title}" теперь: ${CargoStatus.getDisplayStatus(canonicalStatus)}',
       actor: actor,
       cargo: cargo,
       type: 'status',
@@ -493,5 +584,18 @@ class SiteWorkflowRepository {
       return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     }
     return 'application/octet-stream';
+  }
+
+  String _serviceTypeTitle(String type) {
+    switch (type) {
+      case 'insurance':
+        return 'Заявка на страхование';
+      case 'legal':
+        return 'Запрос юристу';
+      case 'support':
+        return 'Обращение в техподдержку';
+      default:
+        return 'Сервисная заявка';
+    }
   }
 }

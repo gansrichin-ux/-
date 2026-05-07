@@ -5,7 +5,7 @@ class CarriersSection extends StatelessWidget {
   final List<UserModel> carriers;
   final UserModel user;
   final Future<void> Function(CargoModel cargo, UserModel carrier)
-  onAssignCarrier;
+      onAssignCarrier;
 
   const CarriersSection({
     super.key,
@@ -43,12 +43,18 @@ class CarriersSection extends StatelessWidget {
       separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final carrier = carriers[index];
-        final assigned = cargos.where((cargo) => cargo.carrierId == carrier.uid);
+        final assigned = cargos.where((cargo) {
+          final belongsToUser = user.isAdmin || cargo.ownerId == user.uid;
+          return belongsToUser && cargo.carrierId == carrier.uid;
+        }).toList();
         final active = assigned
             .where((cargo) => cargo.status == CargoStatus.inTransit)
             .length;
         final available = cargos
-            .where((cargo) => cargo.status == CargoStatus.published && cargo.carrierId == null)
+            .where((cargo) =>
+                (user.isAdmin || cargo.ownerId == user.uid) &&
+                cargo.status == CargoStatus.published &&
+                cargo.carrierId == null)
             .toList();
 
         return AppCard(
@@ -61,79 +67,81 @@ class CarriersSection extends StatelessWidget {
                   Container(
                     width: 48,
                     height: 48,
-                      decoration: BoxDecoration(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.primary.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        Icons.person_rounded,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
+                    decoration: BoxDecoration(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primary.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            carrier.displayName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w900),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            carrier.car ?? 'Бригада / транспорт не указаны',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
+                    child: Icon(
+                      Icons.person_rounded,
+                      color: Theme.of(context).colorScheme.primary,
                     ),
-                  ],
-                );
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          carrier.displayName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w900),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          carrier.car ?? 'Бригада / транспорт не указаны',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
 
-                final controls = Row(
-                  mainAxisSize: compact ? MainAxisSize.max : MainAxisSize.min,
-                  children: [
-                    _CarrierCounter(label: 'Активно', value: active),
-                    const SizedBox(width: 10),
-                    _CarrierCounter(label: 'Всего', value: assigned.length),
-                    const SizedBox(width: 10),
-                    if (available.isNotEmpty)
-                      AppButton(
-                        onPressed: () =>
-                            _showAssignDialog(context, carrier, available),
-                        icon: Icons.assignment_rounded,
-                        label: 'Груз',
-                      ),
-                  ],
-                );
+              final controls = Row(
+                mainAxisSize: compact ? MainAxisSize.max : MainAxisSize.min,
+                children: [
+                  _CarrierCounter(label: 'Активно', value: active),
+                  const SizedBox(width: 10),
+                  _CarrierCounter(label: 'Всего', value: assigned.length),
+                  const SizedBox(width: 10),
+                  if (available.isNotEmpty)
+                    AppButton(
+                      onPressed: () =>
+                          _showAssignDialog(context, carrier, available),
+                      icon: Icons.assignment_rounded,
+                      label: 'Груз',
+                    ),
+                ],
+              );
 
-                if (compact) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [main, const SizedBox(height: 14), controls],
-                  );
-                }
-
-                return Row(
-                  children: [
-                    Expanded(child: main),
-                    controls,
-                  ],
+              if (compact) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [main, const SizedBox(height: 14), controls],
                 );
-              },
-            ),
+              }
+
+              return Row(
+                children: [
+                  Expanded(child: main),
+                  controls,
+                ],
+              );
+            },
+          ),
         );
       },
     );

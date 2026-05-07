@@ -82,7 +82,8 @@ class CargoRepository {
       final cargos = snap.docs
           .map(CargoModel.fromFirestore)
           // carrierId getter covers both driverId and executorId
-          .where((cargo) => cargo.status == CargoStatus.published && cargo.carrierId == null)
+          .where((cargo) =>
+              cargo.status == CargoStatus.published && cargo.carrierId == null)
           .toList();
       cargos.sort((a, b) {
         final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
@@ -126,6 +127,7 @@ class CargoRepository {
       'executorId': carrierId,
       'executorName': carrierName,
       'status': CargoStatus.executorSelected,
+      'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
@@ -134,7 +136,8 @@ class CargoRepository {
     required String cargoId,
     required String driverId,
     required String driverName,
-  }) => assignCarrier(
+  }) =>
+      assignCarrier(
         cargoId: cargoId,
         carrierId: driverId,
         carrierName: driverName,

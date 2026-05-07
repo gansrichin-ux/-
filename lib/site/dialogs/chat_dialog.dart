@@ -135,8 +135,8 @@ class _SiteChatDialogState extends State<SiteChatDialog> {
                       child: TextField(
                         controller: _controller,
                         minLines: 1,
-                        maxLines: 4,
-                        keyboardType: TextInputType.multiline,
+                        maxLines: 1,
+                        keyboardType: TextInputType.text,
                         textInputAction: TextInputAction.send,
                         decoration: const InputDecoration(
                           hintText: 'Написать сообщение...',

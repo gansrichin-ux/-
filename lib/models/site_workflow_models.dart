@@ -164,3 +164,44 @@ class UserReportModel {
     );
   }
 }
+
+class ServiceRequestModel {
+  final String id;
+  final String userId;
+  final String userName;
+  final String type;
+  final String title;
+  final String message;
+  final String status;
+  final DateTime createdAt;
+  final DateTime? updatedAt;
+
+  const ServiceRequestModel({
+    required this.id,
+    required this.userId,
+    required this.userName,
+    required this.type,
+    required this.title,
+    required this.message,
+    required this.status,
+    required this.createdAt,
+    this.updatedAt,
+  });
+
+  factory ServiceRequestModel.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+    return ServiceRequestModel(
+      id: doc.id,
+      userId: data['userId'] as String? ?? '',
+      userName: data['userName'] as String? ?? '',
+      type: data['type'] as String? ?? 'support',
+      title: data['title'] as String? ?? '',
+      message: data['message'] as String? ?? '',
+      status: data['status'] as String? ?? 'open',
+      createdAt: _readWorkflowDate(data['createdAt']),
+      updatedAt: data['updatedAt'] == null
+          ? null
+          : _readWorkflowDate(data['updatedAt']),
+    );
+  }
+}

@@ -25,15 +25,19 @@ class TransportRepository {
     DateTime? availableFrom,
     bool? allowsReload,
   }) {
-    Query<Map<String, dynamic>> query = _transports.where('status', isEqualTo: 'available');
+    Query<Map<String, dynamic>> query =
+        _transports.where('status', isEqualTo: 'available');
 
     if (type != null) query = query.where('type', isEqualTo: type);
     if (bodyType != null) query = query.where('bodyType', isEqualTo: bodyType);
-    if (paymentType != null) query = query.where('paymentType', isEqualTo: paymentType);
-    if (hasHydrolift == true) query = query.where('hasHydrolift', isEqualTo: true);
+    if (paymentType != null)
+      query = query.where('paymentType', isEqualTo: paymentType);
+    if (hasHydrolift == true)
+      query = query.where('hasHydrolift', isEqualTo: true);
     if (hasConics == true) query = query.where('hasConics', isEqualTo: true);
     if (hasAdr == true) query = query.where('hasAdr', isEqualTo: true);
-    if (allowsReload == true) query = query.where('allowsReload', isEqualTo: true);
+    if (allowsReload == true)
+      query = query.where('allowsReload', isEqualTo: true);
 
     return query.snapshots().map((snap) {
       var list = snap.docs.map(TransportModel.fromFirestore).toList();
@@ -46,16 +50,28 @@ class TransportRepository {
         list = list.where((t) => t.volumeM3 >= minVolume).toList();
       }
       if (loadingPoint != null && loadingPoint.isNotEmpty) {
-        list = list.where((t) => t.loadingPoints.any((p) => p.toLowerCase().contains(loadingPoint.toLowerCase()))).toList();
+        list = list
+            .where((t) => t.loadingPoints.any(
+                (p) => p.toLowerCase().contains(loadingPoint.toLowerCase())))
+            .toList();
       }
       if (unloadingPoint != null && unloadingPoint.isNotEmpty) {
-        list = list.where((t) => t.unloadingPoints.any((p) => p.toLowerCase().contains(unloadingPoint.toLowerCase()))).toList();
+        list = list
+            .where((t) => t.unloadingPoints.any(
+                (p) => p.toLowerCase().contains(unloadingPoint.toLowerCase())))
+            .toList();
       }
       if (availableFrom != null) {
-        list = list.where((t) => t.availableFrom == null || t.availableFrom!.isAfter(availableFrom) || t.availableFrom!.isAtSameMomentAs(availableFrom)).toList();
+        list = list
+            .where((t) =>
+                t.availableFrom == null ||
+                t.availableFrom!.isAfter(availableFrom) ||
+                t.availableFrom!.isAtSameMomentAs(availableFrom))
+            .toList();
       }
 
-      list.sort((a, b) => (b.createdAt ?? DateTime.now()).compareTo(a.createdAt ?? DateTime.now()));
+      list.sort((a, b) => (b.createdAt ?? DateTime.now())
+          .compareTo(a.createdAt ?? DateTime.now()));
       return list;
     });
   }
@@ -69,7 +85,11 @@ class TransportRepository {
 
   Future<void> createTransport(TransportModel transport) async {
     try {
-      await _transports.doc(transport.id.isEmpty ? null : transport.id).set(transport.toMap());
+      if (transport.id.isEmpty) {
+        await _transports.add(transport.toMap());
+      } else {
+        await _transports.doc(transport.id).set(transport.toMap());
+      }
     } catch (e) {
       debugPrint('Error creating transport: $e');
       rethrow;

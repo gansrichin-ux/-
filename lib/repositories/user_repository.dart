@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/cargo_model.dart';
@@ -81,7 +82,10 @@ class UserRepository {
     required XFile file,
   }) async {
     final fileName = _safeFileName(file.name);
-    final mimeType = file.mimeType ?? _guessImageMimeType(fileName);
+    final detectedMimeType = file.mimeType ?? _guessImageMimeType(fileName);
+    final mimeType = detectedMimeType.startsWith('image/')
+        ? detectedMimeType
+        : _guessImageMimeType(fileName);
     final bytes = await file.readAsBytes();
     if (bytes.isEmpty) {
       throw Exception('Файл пустой или не удалось прочитать изображение');
@@ -114,8 +118,16 @@ class UserRepository {
       'name': name.trim(),
       'aboutMe': aboutMe.trim(),
       if (avatarUrl != null) 'avatarUrl': avatarUrl,
+      if (avatarUrl != null) 'photoURL': avatarUrl,
       if (user.isDriver) 'car': (car ?? '').trim(),
       'updatedAt': FieldValue.serverTimestamp(),
+    };
+    final roleData = {
+      ...updates,
+      'uid': user.uid,
+      'email': user.email,
+      'role': user.role,
+      'roles': user.roles.isEmpty ? [user.role] : user.roles,
     };
 
     final batch = _firestore.batch();
@@ -128,11 +140,16 @@ class UserRepository {
       _firestore
           .collection(user.isDriver ? 'drivers' : 'logisticians')
           .doc(user.uid),
-      updates,
+      roleData,
       SetOptions(merge: true),
     );
 
     await batch.commit();
+
+    final authUser = FirebaseAuth.instance.currentUser;
+    if (avatarUrl != null && authUser?.uid == user.uid) {
+      await authUser!.updatePhotoURL(avatarUrl);
+    }
   }
 
   Future<void> rateUser({

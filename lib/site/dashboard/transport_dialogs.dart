@@ -1,9 +1,9 @@
 part of '../../main_site.dart';
 
 class AddTransportDialog extends StatefulWidget {
-  final String ownerId;
+  final UserModel owner;
 
-  const AddTransportDialog({super.key, required this.ownerId});
+  const AddTransportDialog({super.key, required this.owner});
 
   @override
   State<AddTransportDialog> createState() => _AddTransportDialogState();
@@ -11,23 +11,23 @@ class AddTransportDialog extends StatefulWidget {
 
 class _AddTransportDialogState extends State<AddTransportDialog> {
   final _formKey = GlobalKey<FormState>();
-  
+
   final _brandController = TextEditingController();
   final _modelController = TextEditingController();
   final _plateController = TextEditingController();
   final _capacityController = TextEditingController(text: '1.5');
   final _volumeController = TextEditingController(text: '10.0');
   final _directionsController = TextEditingController();
-  
+
   String _type = 'hitch';
   String _bodyType = TruckBodyTypes.truck;
   String _paymentType = 'cash';
-  
+
   bool _hasAdr = false;
   bool _hasGps = false;
   bool _hasTir = false;
   bool _allowsReload = true;
-  
+
   DateTime? _availableFrom;
   bool _isSaving = false;
 
@@ -64,7 +64,8 @@ class _AddTransportDialogState extends State<AddTransportDialog> {
                       const Expanded(
                         child: Text(
                           'Добавить транспорт',
-                          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 24),
+                          style: TextStyle(
+                              fontWeight: FontWeight.w900, fontSize: 24),
                         ),
                       ),
                       IconButton(
@@ -74,7 +75,6 @@ class _AddTransportDialogState extends State<AddTransportDialog> {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  
                   Row(
                     children: [
                       Expanded(
@@ -82,8 +82,10 @@ class _AddTransportDialogState extends State<AddTransportDialog> {
                           label: 'Тип ТС',
                           value: _type,
                           items: const [
-                            DropdownMenuItem(value: 'hitch', child: Text('Сцепка')),
-                            DropdownMenuItem(value: 'solo', child: Text('Одиночка')),
+                            DropdownMenuItem(
+                                value: 'hitch', child: Text('Сцепка')),
+                            DropdownMenuItem(
+                                value: 'solo', child: Text('Одиночка')),
                           ],
                           onChanged: (v) => setState(() => _type = v!),
                         ),
@@ -93,17 +95,18 @@ class _AddTransportDialogState extends State<AddTransportDialog> {
                         child: AppDropdown<String>(
                           label: 'Тип кузова',
                           value: _bodyType,
-                          items: TruckBodyTypes.labels.entries.map((e) => DropdownMenuItem(
-                            value: e.key,
-                            child: Text(e.value),
-                          )).toList(),
+                          items: TruckBodyTypes.labels.entries
+                              .map((e) => DropdownMenuItem(
+                                    value: e.key,
+                                    child: Text(e.value),
+                                  ))
+                              .toList(),
                           onChanged: (v) => setState(() => _bodyType = v!),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 16),
-                  
                   Row(
                     children: [
                       Expanded(
@@ -111,7 +114,8 @@ class _AddTransportDialogState extends State<AddTransportDialog> {
                           label: 'Марка',
                           hint: 'Напр. Mercedes',
                           controller: _brandController,
-                          validator: (v) => v?.isEmpty == true ? 'Укажите марку' : null,
+                          validator: (v) =>
+                              v?.isEmpty == true ? 'Укажите марку' : null,
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -125,7 +129,6 @@ class _AddTransportDialogState extends State<AddTransportDialog> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  
                   Row(
                     children: [
                       Expanded(
@@ -133,7 +136,8 @@ class _AddTransportDialogState extends State<AddTransportDialog> {
                           label: 'Гос. номер',
                           hint: '001ABC01',
                           controller: _plateController,
-                          validator: (v) => v?.isEmpty == true ? 'Укажите номер' : null,
+                          validator: (v) =>
+                              v?.isEmpty == true ? 'Укажите номер' : null,
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -142,9 +146,12 @@ class _AddTransportDialogState extends State<AddTransportDialog> {
                           label: 'Оплата',
                           value: _paymentType,
                           items: const [
-                            DropdownMenuItem(value: 'cash', child: Text('Наличные')),
-                            DropdownMenuItem(value: 'cashless', child: Text('Безнал')),
-                            DropdownMenuItem(value: 'to_card', child: Text('На карту')),
+                            DropdownMenuItem(
+                                value: 'cash', child: Text('Наличные')),
+                            DropdownMenuItem(
+                                value: 'cashless', child: Text('Безнал')),
+                            DropdownMenuItem(
+                                value: 'to_card', child: Text('На карту')),
                           ],
                           onChanged: (v) => setState(() => _paymentType = v!),
                         ),
@@ -152,7 +159,6 @@ class _AddTransportDialogState extends State<AddTransportDialog> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  
                   Row(
                     children: [
                       Expanded(
@@ -173,7 +179,6 @@ class _AddTransportDialogState extends State<AddTransportDialog> {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  
                   const Text(
                     'Дополнительные опции',
                     style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
@@ -182,31 +187,35 @@ class _AddTransportDialogState extends State<AddTransportDialog> {
                   Wrap(
                     spacing: 24,
                     children: [
-                      _buildSwitch('ADR', _hasAdr, (v) => setState(() => _hasAdr = v)),
-                      _buildSwitch('GPS', _hasGps, (v) => setState(() => _hasGps = v)),
-                      _buildSwitch('TIR', _hasTir, (v) => setState(() => _hasTir = v)),
-                      _buildSwitch('Догруз', _allowsReload, (v) => setState(() => _allowsReload = v)),
+                      _buildSwitch(
+                          'ADR', _hasAdr, (v) => setState(() => _hasAdr = v)),
+                      _buildSwitch(
+                          'GPS', _hasGps, (v) => setState(() => _hasGps = v)),
+                      _buildSwitch(
+                          'TIR', _hasTir, (v) => setState(() => _hasTir = v)),
+                      _buildSwitch('Догруз', _allowsReload,
+                          (v) => setState(() => _allowsReload = v)),
                     ],
                   ),
                   const SizedBox(height: 24),
-                  
                   AppTextField(
                     label: 'Предпочтительные направления',
                     hint: 'Алматы, Астана, Шымкент (через запятую)',
                     controller: _directionsController,
                   ),
                   const SizedBox(height: 16),
-                  
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: const Text('Доступен с даты', style: TextStyle(fontWeight: FontWeight.w700)),
-                    subtitle: Text(_availableFrom == null ? 'Сейчас' : DateFormat('dd.MM.yyyy').format(_availableFrom!)),
+                    title: const Text('Доступен с даты',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
+                    subtitle: Text(_availableFrom == null
+                        ? 'Сейчас'
+                        : DateFormat('dd.MM.yyyy').format(_availableFrom!)),
                     trailing: AppButton(
                       label: 'Выбрать',
                       onPressed: _selectDate,
                     ),
                   ),
-                  
                   const SizedBox(height: 32),
                   AppButton(
                     label: _isSaving ? 'Сохранение...' : 'Создать транспорт',
@@ -246,21 +255,21 @@ class _AddTransportDialogState extends State<AddTransportDialog> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     setState(() => _isSaving = true);
-    
+
     try {
-      final directions = _directionsController.text.split(',')
+      final directions = _directionsController.text
+          .split(',')
           .map((e) => e.trim())
           .where((e) => e.isNotEmpty)
           .toList();
-          
-      final user = AuthRepository.instance.currentUser;
+
       final transport = TransportModel(
-        id: '', 
-        ownerId: widget.ownerId,
-        ownerName: (user?.displayName ?? 'Владелец'),
-        ownerPhotoUrl: user?.photoURL,
+        id: '',
+        ownerId: widget.owner.uid,
+        ownerName: widget.owner.displayName,
+        ownerPhotoUrl: widget.owner.avatarUrl,
         type: _type,
         brand: _brandController.text,
         model: _modelController.text,
@@ -279,7 +288,7 @@ class _AddTransportDialogState extends State<AddTransportDialog> {
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
-      
+
       await TransportRepository.instance.createTransport(transport);
       if (!mounted) return;
       Navigator.pop(context, true);

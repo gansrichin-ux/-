@@ -62,6 +62,7 @@ part 'site/dashboard/cargos_section.dart';
 part 'site/dashboard/chats_section.dart';
 part 'site/dashboard/transport_sections.dart';
 part 'site/dashboard/transport_dialogs.dart';
+part 'site/dashboard/company_service_sections.dart';
 part 'site/dashboard/workflow_sections.dart';
 part 'site/dashboard/carriers_section.dart';
 part 'site/dashboard/users_section.dart';

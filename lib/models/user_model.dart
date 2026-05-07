@@ -36,13 +36,23 @@ class UserModel {
     this.emailCodeVerified = false,
   });
 
-  bool get isCarrier => RolePermissions.hasRole(this, RolePermissions.carrier) || RolePermissions.hasRole(this, 'driver');
-  bool get isLogistician => RolePermissions.hasRole(this, RolePermissions.logistician);
-  bool get isCargoOwner => RolePermissions.hasRole(this, RolePermissions.cargoOwner);
-  bool get isForwarder => RolePermissions.hasRole(this, RolePermissions.forwarder);
-  bool get isCarrierForwarder => RolePermissions.hasRole(this, RolePermissions.carrierForwarder) || RolePermissions.hasRole(this, 'driver_forwarder');
-  bool get isCargoOwnerCarrier => RolePermissions.hasRole(this, RolePermissions.cargoOwnerCarrier) || RolePermissions.hasRole(this, 'driver_cargo_owner');
-  bool get isLogisticianCarrier => RolePermissions.hasRole(this, RolePermissions.logisticianCarrier);
+  bool get isCarrier =>
+      RolePermissions.hasRole(this, RolePermissions.carrier) ||
+      RolePermissions.hasRole(this, 'driver');
+  bool get isLogistician =>
+      RolePermissions.hasRole(this, RolePermissions.logistician);
+  bool get isCargoOwner =>
+      RolePermissions.hasRole(this, RolePermissions.cargoOwner);
+  bool get isForwarder =>
+      RolePermissions.hasRole(this, RolePermissions.forwarder);
+  bool get isCarrierForwarder =>
+      RolePermissions.hasRole(this, RolePermissions.carrierForwarder) ||
+      RolePermissions.hasRole(this, 'driver_forwarder');
+  bool get isCargoOwnerCarrier =>
+      RolePermissions.hasRole(this, RolePermissions.cargoOwnerCarrier) ||
+      RolePermissions.hasRole(this, 'driver_cargo_owner');
+  bool get isLogisticianCarrier =>
+      RolePermissions.hasRole(this, RolePermissions.logisticianCarrier);
   bool get isAdmin => RolePermissions.hasRole(this, RolePermissions.admin);
 
   // Legacy compatibility
@@ -92,13 +102,14 @@ class UserModel {
   factory UserModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>?;
     if (data == null) {
-      return UserModel(uid: doc.id, email: '', role: 'logistician', roles: ['logistician']);
+      return UserModel(
+          uid: doc.id, email: '', role: 'logistician', roles: ['logistician']);
     }
-    
+
     // Support legacy documents where 'roles' doesn't exist yet
     final rawLegacyRole = data['role'] as String? ?? 'logistician';
     final parsedRoles = data['roles'] as List<dynamic>?;
-    
+
     final normalizedRoles = normalizeRoles(
       parsedRoles?.map((e) => e.toString()).toList() ?? [],
       rawLegacyRole,
@@ -115,7 +126,8 @@ class UserModel {
       name: data['name'] as String?,
       car: data['car'] as String?,
       fcmToken: data['fcmToken'] as String?,
-      avatarUrl: data['avatarUrl'] as String?,
+      avatarUrl: (data['avatarUrl'] ?? data['photoURL'] ?? data['photoUrl'])
+          as String?,
       aboutMe: data['aboutMe'] as String?,
       ratingCount: (data['ratingCount'] as num?)?.toInt() ?? 0,
       ratingSum: (data['ratingSum'] as num?)?.toInt() ?? 0,
@@ -126,7 +138,7 @@ class UserModel {
   factory UserModel.fromMap(Map<String, dynamic> map) {
     final rawLegacyRole = map['role'] as String? ?? 'logistician';
     final parsedRoles = map['roles'] as List<dynamic>?;
-    
+
     final normalizedRoles = normalizeRoles(
       parsedRoles?.map((e) => e.toString()).toList() ?? [],
       rawLegacyRole,
@@ -143,7 +155,8 @@ class UserModel {
       name: map['name'] as String?,
       car: map['car'] as String?,
       fcmToken: map['fcmToken'] as String?,
-      avatarUrl: map['avatarUrl'] as String?,
+      avatarUrl:
+          (map['avatarUrl'] ?? map['photoURL'] ?? map['photoUrl']) as String?,
       aboutMe: map['aboutMe'] as String?,
       ratingCount: (map['ratingCount'] as num?)?.toInt() ?? 0,
       ratingSum: (map['ratingSum'] as num?)?.toInt() ?? 0,
@@ -164,6 +177,7 @@ class UserModel {
       if (car != null) 'car': car,
       if (fcmToken != null) 'fcmToken': fcmToken,
       if (avatarUrl != null) 'avatarUrl': avatarUrl,
+      if (avatarUrl != null) 'photoURL': avatarUrl,
       if (aboutMe != null) 'aboutMe': aboutMe,
       'ratingCount': ratingCount,
       'ratingSum': ratingSum,
@@ -225,7 +239,7 @@ class UserModel {
     }
 
     // 3. Handle hybrid role expansions
-    // We clone the current set to avoid modification during iteration if we were using a list, 
+    // We clone the current set to avoid modification during iteration if we were using a list,
     // but with a set and explicit checks it's fine.
     if (result.contains('carrier_forwarder')) {
       result.add('carrier');

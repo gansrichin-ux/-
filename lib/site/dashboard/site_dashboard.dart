@@ -56,12 +56,14 @@ class _SiteDashboardState extends State<SiteDashboard> {
     super.initState();
     _cargosStream = CargoRepository.instance.watchAllCargos();
     _usersStream = UserRepository.instance.watchAllUsers();
-    _favoritesStream = UserRepository.instance.watchFavoriteCargoIds(widget.user.uid);
-    _applicationsStream = SiteWorkflowRepository.instance.watchApplicationsForUser(widget.user);
+    _favoritesStream =
+        UserRepository.instance.watchFavoriteCargoIds(widget.user.uid);
+    _applicationsStream =
+        SiteWorkflowRepository.instance.watchApplicationsForUser(widget.user);
     _transportsStream = TransportRepository.instance.watchAvailableTransport();
   }
 
-      List<SiteSection> get _visibleSections => [
+  List<SiteSection> get _visibleSections => [
         SiteSection.overview,
         SiteSection.company,
         SiteSection.cargos,
@@ -103,17 +105,20 @@ class _SiteDashboardState extends State<SiteDashboard> {
             return StreamBuilder<Set<String>>(
               stream: _favoritesStream,
               builder: (context, favoriteSnapshot) {
-                final favoriteCargoIds = favoriteSnapshot.data ?? const <String>{};
+                final favoriteCargoIds =
+                    favoriteSnapshot.data ?? const <String>{};
 
                 return StreamBuilder<List<CargoApplicationModel>>(
                   stream: _applicationsStream,
                   builder: (context, applicationSnapshot) {
-                    final applications = applicationSnapshot.data ?? const <CargoApplicationModel>[];
+                    final applications = applicationSnapshot.data ??
+                        const <CargoApplicationModel>[];
 
                     return StreamBuilder<List<TransportModel>>(
                       stream: _transportsStream,
                       builder: (context, transportSnapshot) {
-                        final transports = transportSnapshot.data ?? const <TransportModel>[];
+                        final transports =
+                            transportSnapshot.data ?? const <TransportModel>[];
 
                         return AppResponsiveScaffold(
                           appBar: isWide
@@ -387,9 +392,12 @@ class _SiteDashboardState extends State<SiteDashboard> {
           },
         );
       case SiteSection.company:
-        return const _PlaceholderSection(
-          title: 'Моя компания',
-          description: 'Управление профилем компании, сотрудниками и документами организации.',
+        return CompanySection(
+          user: widget.user,
+          users: users,
+          cargos: _personalCargos(cargos),
+          onOpenProfile: () => _openProfile(widget.user),
+          onOpenChats: () => setState(() => _section = SiteSection.chats),
         );
       case SiteSection.myCargos:
         final personalCargos = _filteredCargos(_personalCargos(cargos));
@@ -525,24 +533,45 @@ class _SiteDashboardState extends State<SiteDashboard> {
           onOpenProfile: _openProfile,
         );
       case SiteSection.insurance:
-        return const _PlaceholderSection(
+        return ServiceRequestSection(
+          user: widget.user,
+          type: 'insurance',
           title: 'Страхование груза',
-          description: 'Оформление страховых полисов для ваших перевозок онлайн.',
+          subtitle:
+              'Отправьте параметры перевозки, чтобы зафиксировать заявку на полис и историю обращения.',
+          icon: Icons.verified_user_outlined,
+          subjectLabel: 'Что страхуем',
+          messageLabel: 'Условия и комментарии',
+          showRouteFields: true,
+          showAmountField: true,
         );
       case SiteSection.legal:
-        return const _PlaceholderSection(
+        return ServiceRequestSection(
+          user: widget.user,
+          type: 'legal',
           title: 'Помощь юриста',
-          description: 'Консультации по транспортному праву, помощь в разрешении споров и проверка контрагентов.',
+          subtitle:
+              'Создайте обращение по спору, договору, оплате или проверке контрагента.',
+          icon: Icons.gavel_outlined,
+          subjectLabel: 'Тема обращения',
+          messageLabel: 'Опишите ситуацию',
         );
       case SiteSection.support:
-        return const _PlaceholderSection(
+        return ServiceRequestSection(
+          user: widget.user,
+          type: 'support',
           title: 'Техподдержка',
-          description: 'Связь со специалистами Logist App для решения технических вопросов.',
+          subtitle:
+              'Сообщите о проблеме сайта, аккаунта, синхронизации или данных в кабинете.',
+          icon: Icons.support_agent_outlined,
+          subjectLabel: 'Что не работает',
+          messageLabel: 'Шаги, ошибка и ожидаемый результат',
         );
       case SiteSection.admin:
         return AdminSection(user: widget.user, users: users, cargos: cargos);
       case SiteSection.sync:
-        return SyncSection(cargos: cargos, carriers: carriers, user: widget.user);
+        return SyncSection(
+            cargos: cargos, carriers: carriers, user: widget.user);
     }
   }
 
@@ -648,7 +677,8 @@ class _SiteDashboardState extends State<SiteDashboard> {
 
   bool get _canCreateTransport =>
       widget.user.canApplyToCargo &&
-      (_section == SiteSection.myTransport || _section == SiteSection.findTransport);
+      (_section == SiteSection.myTransport ||
+          _section == SiteSection.findTransport);
 
   Widget? _fab(BuildContext context) {
     if (_canCreateCargo) {
@@ -670,8 +700,10 @@ class _SiteDashboardState extends State<SiteDashboard> {
 
   List<CargoModel> _personalCargos(List<CargoModel> cargos) {
     return cargos.where((cargo) {
-      final isMyCarrierCargo = widget.user.canApplyToCargo && cargo.carrierId == widget.user.uid;
-      final isMyOwnerCargo = widget.user.canCreateCargo && cargo.ownerId == widget.user.uid;
+      final isMyCarrierCargo =
+          widget.user.canApplyToCargo && cargo.carrierId == widget.user.uid;
+      final isMyOwnerCargo =
+          widget.user.canCreateCargo && cargo.ownerId == widget.user.uid;
       return isMyCarrierCargo || isMyOwnerCargo;
     }).toList();
   }
@@ -709,54 +741,71 @@ class _SiteDashboardState extends State<SiteDashboard> {
       if (from.isNotEmpty || to.isNotEmpty) {
         final cargoFrom = cargo.from.toLowerCase();
         final cargoTo = cargo.to.toLowerCase();
-        
+
         bool matches = true;
         if (from.isNotEmpty && !cargoFrom.contains(from)) matches = false;
         if (to.isNotEmpty && !cargoTo.contains(to)) matches = false;
-        
+
         if (!matches && _filters.isTwoWaySearch) {
           // Check reverse direction
           bool matchesReverse = true;
-          if (from.isNotEmpty && !cargoTo.contains(from)) matchesReverse = false;
+          if (from.isNotEmpty && !cargoTo.contains(from))
+            matchesReverse = false;
           if (to.isNotEmpty && !cargoFrom.contains(to)) matchesReverse = false;
           matches = matchesReverse;
         }
-        
+
         if (!matches) return false;
       }
 
       // Cargo Specs Filters
-      if (bodyType.isNotEmpty && (cargo.bodyType?.toLowerCase() ?? '') != bodyType) return false;
-      if (_filters.truckType != null && cargo.truckType != _filters.truckType) return false;
-      if (_filters.shipmentType != null && cargo.shipmentType != _filters.shipmentType) return false;
-      if (_filters.carCount != null && cargo.carCount != _filters.carCount) return false;
+      if (bodyType.isNotEmpty &&
+          (cargo.bodyType?.toLowerCase() ?? '') != bodyType) return false;
+      if (_filters.truckType != null && cargo.truckType != _filters.truckType)
+        return false;
+      if (_filters.shipmentType != null &&
+          cargo.shipmentType != _filters.shipmentType) return false;
+      if (_filters.carCount != null && cargo.carCount != _filters.carCount)
+        return false;
 
       // Weight & Volume
-      if (_filters.minWeight != null && (cargo.weightKg ?? 0) < _filters.minWeight!) return false;
-      if (_filters.maxWeight != null && (cargo.weightKg ?? double.infinity) > _filters.maxWeight!) return false;
-      if (_filters.minVolume != null && (cargo.volumeM3 ?? 0) < _filters.minVolume!) return false;
-      if (_filters.maxVolume != null && (cargo.volumeM3 ?? double.infinity) > _filters.maxVolume!) return false;
+      if (_filters.minWeight != null &&
+          (cargo.weightKg ?? 0) < _filters.minWeight!) return false;
+      if (_filters.maxWeight != null &&
+          (cargo.weightKg ?? double.infinity) > _filters.maxWeight!)
+        return false;
+      if (_filters.minVolume != null &&
+          (cargo.volumeM3 ?? 0) < _filters.minVolume!) return false;
+      if (_filters.maxVolume != null &&
+          (cargo.volumeM3 ?? double.infinity) > _filters.maxVolume!)
+        return false;
 
       // Price & Payment
       if (_filters.priceNegotiable) {
         if (cargo.price != null && cargo.price! > 0) return false;
       } else {
-        if (_filters.minPrice != null && (cargo.price ?? 0) < _filters.minPrice!) return false;
-        if (_filters.maxPrice != null && (cargo.price ?? double.infinity) > _filters.maxPrice!) return false;
-        if (_filters.currency != null && cargo.currency != _filters.currency) return false;
+        if (_filters.minPrice != null &&
+            (cargo.price ?? 0) < _filters.minPrice!) return false;
+        if (_filters.maxPrice != null &&
+            (cargo.price ?? double.infinity) > _filters.maxPrice!) return false;
+        if (_filters.currency != null && cargo.currency != _filters.currency)
+          return false;
       }
 
       // Badges & Readiness
       if (_filters.isUrgent && !cargo.isUrgent) return false;
       if (_filters.isHumanitarian && !cargo.isHumanitarian) return false;
       if (_filters.hasPhoto && cargo.photos.isEmpty) return false;
-      if (_filters.isReady != null && cargo.isReady != _filters.isReady) return false;
+      if (_filters.isReady != null && cargo.isReady != _filters.isReady)
+        return false;
 
       // Date
       if (_filters.loadingDate != null) {
         if (cargo.loadingDate == null) return false;
-        final cargoDate = DateTime(cargo.loadingDate!.year, cargo.loadingDate!.month, cargo.loadingDate!.day);
-        final filterDate = DateTime(_filters.loadingDate!.year, _filters.loadingDate!.month, _filters.loadingDate!.day);
+        final cargoDate = DateTime(cargo.loadingDate!.year,
+            cargo.loadingDate!.month, cargo.loadingDate!.day);
+        final filterDate = DateTime(_filters.loadingDate!.year,
+            _filters.loadingDate!.month, _filters.loadingDate!.day);
         if (cargoDate != filterDate) return false;
       }
 
@@ -785,7 +834,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
   Future<void> _showTransportDialog(BuildContext context) async {
     final created = await showDialog<bool>(
       context: context,
-      builder: (context) => AddTransportDialog(ownerId: widget.user.uid),
+      builder: (context) => AddTransportDialog(owner: widget.user),
     );
 
     if (!mounted || created != true) return;
@@ -1002,11 +1051,15 @@ IconData _sectionIcon(SiteSection section, {required bool selected}) {
           ? Icons.notifications_active_rounded
           : Icons.notifications_none_rounded;
     case SiteSection.carriers:
-      return selected ? Icons.local_shipping_rounded : Icons.local_shipping_outlined;
+      return selected
+          ? Icons.local_shipping_rounded
+          : Icons.local_shipping_outlined;
     case SiteSection.users:
       return selected ? Icons.badge_rounded : Icons.badge_outlined;
     case SiteSection.favorites:
-      return selected ? Icons.check_circle_rounded : Icons.check_circle_outline_rounded;
+      return selected
+          ? Icons.check_circle_rounded
+          : Icons.check_circle_outline_rounded;
     case SiteSection.activity:
       return selected ? Icons.manage_history_rounded : Icons.history_rounded;
     case SiteSection.findTransport:
@@ -1016,77 +1069,20 @@ IconData _sectionIcon(SiteSection section, {required bool selected}) {
     case SiteSection.myTransport:
       return selected ? Icons.commute_rounded : Icons.commute_outlined;
     case SiteSection.insurance:
-      return selected ? Icons.verified_user_rounded : Icons.verified_user_outlined;
+      return selected
+          ? Icons.verified_user_rounded
+          : Icons.verified_user_outlined;
     case SiteSection.legal:
       return selected ? Icons.gavel_rounded : Icons.gavel_outlined;
     case SiteSection.support:
-      return selected ? Icons.support_agent_rounded : Icons.support_agent_outlined;
+      return selected
+          ? Icons.support_agent_rounded
+          : Icons.support_agent_outlined;
     case SiteSection.admin:
       return selected
           ? Icons.admin_panel_settings_rounded
           : Icons.admin_panel_settings_outlined;
     case SiteSection.sync:
       return selected ? Icons.sync_rounded : Icons.sync_outlined;
-  }
-}
-
-class _PlaceholderSection extends StatelessWidget {
-  final String title;
-  final String description;
-
-  const _PlaceholderSection({
-    required this.title,
-    required this.description,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: AppCard(
-        constraints: const BoxConstraints(maxWidth: 500),
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.construction_rounded, size: 64, color: Colors.orange),
-            const SizedBox(height: 24),
-            Text(
-              'Раздел в разработке',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              description,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 32),
-            AppButton(
-              label: 'Вернуться в кабинет',
-              onPressed: () {
-                final state = context.findAncestorStateOfType<_SiteDashboardState>();
-                if (state != null) {
-                  // ignore: invalid_use_of_protected_member
-                  state.setState(() => state._section = SiteSection.overview);
-                }
-              },
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
