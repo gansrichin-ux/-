@@ -56,6 +56,7 @@ part 'site/theme/site_theme.dart';
 part 'site/auth/site_auth.dart';
 part 'site/widgets/login_preview.dart';
 part 'site/dashboard/site_dashboard.dart';
+part 'site/dashboard/role_workspace.dart';
 part 'site/dashboard/overview_section.dart';
 part 'site/dashboard/tender_section.dart';
 part 'site/dashboard/cargos_section.dart';

@@ -3,6 +3,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
 import '../core/config/cargo_statuses.dart';
+import '../core/config/role_permissions.dart';
 import '../models/cargo_model.dart';
 import '../models/document_model.dart';
 import '../models/site_workflow_models.dart';
@@ -150,16 +151,18 @@ class SiteWorkflowRepository {
   }
 
   Stream<List<ServiceRequestModel>> watchServiceRequests(
-    String userId, {
+    UserModel user, {
     String? type,
   }) {
-    return _serviceRequests
-        .where('userId', isEqualTo: userId)
-        .limit(80)
-        .snapshots()
-        .map((snap) {
+    final canHandleLegal =
+        type == 'legal' && RolePermissions.canHandleLegalRequests(user);
+    final query = canHandleLegal
+        ? _serviceRequests.where('type', isEqualTo: 'legal')
+        : _serviceRequests.where('userId', isEqualTo: user.uid);
+
+    return query.limit(80).snapshots().map((snap) {
       var items = snap.docs.map(ServiceRequestModel.fromFirestore).toList();
-      if (type != null) {
+      if (type != null && !canHandleLegal) {
         items = items.where((item) => item.type == type).toList();
       }
       items.sort((a, b) => b.createdAt.compareTo(a.createdAt));

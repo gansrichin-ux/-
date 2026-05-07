@@ -45,6 +45,7 @@ class UserModel {
       RolePermissions.hasRole(this, RolePermissions.cargoOwner);
   bool get isForwarder =>
       RolePermissions.hasRole(this, RolePermissions.forwarder);
+  bool get isLawyer => RolePermissions.hasRole(this, RolePermissions.lawyer);
   bool get isCarrierForwarder =>
       RolePermissions.hasRole(this, RolePermissions.carrierForwarder) ||
       RolePermissions.hasRole(this, 'driver_forwarder');
@@ -198,7 +199,8 @@ class UserModel {
   }
 
   String get displayRole {
-    final effectiveRole = roles.isNotEmpty ? roles.first : role;
+    final effectiveRole =
+        role.isNotEmpty ? role : (roles.isNotEmpty ? roles.first : '');
 
     switch (effectiveRole) {
       case 'carrier':
@@ -210,6 +212,8 @@ class UserModel {
         return 'Грузовладелец';
       case 'forwarder':
         return 'Экспедитор';
+      case 'lawyer':
+        return 'Юрист';
       case 'carrier_forwarder':
       case 'driver_forwarder':
         return 'Перевозчик-Экспедитор';

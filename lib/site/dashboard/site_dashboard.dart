@@ -24,12 +24,14 @@ enum SiteSection {
 
 class SiteDashboard extends StatefulWidget {
   final UserModel user;
+  final String? workspaceSlug;
   final bool isDark;
   final VoidCallback onToggleTheme;
 
   const SiteDashboard({
     super.key,
     required this.user,
+    required this.workspaceSlug,
     required this.isDark,
     required this.onToggleTheme,
   });
@@ -51,6 +53,9 @@ class _SiteDashboardState extends State<SiteDashboard> {
   late final Stream<List<CargoApplicationModel>> _applicationsStream;
   late final Stream<List<TransportModel>> _transportsStream;
 
+  SiteWorkspaceConfig get _workspace =>
+      siteWorkspaceFor(widget.user, widget.workspaceSlug);
+
   @override
   void initState() {
     super.initState();
@@ -63,21 +68,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
     _transportsStream = TransportRepository.instance.watchAvailableTransport();
   }
 
-  List<SiteSection> get _visibleSections => [
-        SiteSection.overview,
-        SiteSection.company,
-        SiteSection.cargos,
-        SiteSection.findTransport,
-        SiteSection.myCargos,
-        SiteSection.myTransport,
-        SiteSection.favorites,
-        SiteSection.chats,
-        SiteSection.tender,
-        SiteSection.insurance,
-        SiteSection.legal,
-        SiteSection.carriers,
-        SiteSection.support,
-      ];
+  List<SiteSection> get _visibleSections => _workspace.sections;
 
   void _selectSectionByIndex(int index) {
     final sections = _visibleSections;
@@ -238,6 +229,8 @@ class _SiteDashboardState extends State<SiteDashboard> {
                 children: [
                   Icon(Icons.circle, size: 9, color: colors.secondary),
                   const SizedBox(width: 7),
+                  _WorkspaceMiniBadge(workspace: _workspace),
+                  const SizedBox(width: 10),
                   Text(
                     cargoSnapshot.connectionState == ConnectionState.active
                         ? 'Синхронизировано: $now'
@@ -324,6 +317,10 @@ class _SiteDashboardState extends State<SiteDashboard> {
                   .toList(),
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: _WorkspaceSidebarCard(workspace: _workspace),
+          ),
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: _ExchangeRatePanel(),
@@ -370,10 +367,18 @@ class _SiteDashboardState extends State<SiteDashboard> {
     switch (_section) {
       case SiteSection.overview:
         return OverviewSection(
+          workspace: _workspace,
           cargos: _personalCargos(cargos),
           carriers: carriers,
           user: widget.user,
+          onCreateCargo: widget.user.canCreateCargo
+              ? () => _showCargoDialog(context)
+              : null,
           onOpenCargo: () => setState(() => _section = SiteSection.myCargos),
+          onOpenSection: (section) {
+            if (!_visibleSections.contains(section)) return;
+            setState(() => _section = section);
+          },
           onOpenMyCargosWithStatus: (status) {
             setState(() {
               _section = SiteSection.myCargos;

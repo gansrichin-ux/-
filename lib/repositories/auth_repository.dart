@@ -98,6 +98,7 @@ class AuthRepository {
       'logistician',
       'cargo_owner',
       'forwarder',
+      'lawyer',
       'carrier_forwarder',
       'cargo_owner_carrier',
       'logistician_carrier'
@@ -277,6 +278,8 @@ class AuthRepository {
         return ['logistician'];
       case 'forwarder':
         return ['forwarder'];
+      case 'lawyer':
+        return ['lawyer'];
       case 'cargo_owner':
         return ['cargo_owner'];
       default:
@@ -357,12 +360,15 @@ class AuthRepository {
 
     // If not in new format, try legacy collections
     String? collectionName;
-    bool isCarrier = role == 'carrier' || role == 'driver' || 
-                    (roles != null && (roles.contains('carrier') || roles.contains('driver')));
-    
+    bool isCarrier = role == 'carrier' ||
+        role == 'driver' ||
+        (roles != null &&
+            (roles.contains('carrier') || roles.contains('driver')));
+
     if (isCarrier) {
       collectionName = 'drivers';
-    } else if (role == 'logistician' || (roles != null && roles.contains('logistician'))) {
+    } else if (role == 'logistician' ||
+        (roles != null && roles.contains('logistician'))) {
       collectionName = 'logisticians';
     }
 

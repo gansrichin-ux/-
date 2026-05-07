@@ -1,19 +1,25 @@
 part of '../../main_site.dart';
 
 class OverviewSection extends StatelessWidget {
+  final SiteWorkspaceConfig workspace;
   final List<CargoModel> cargos;
   final List<UserModel> carriers;
   final UserModel user;
+  final VoidCallback? onCreateCargo;
   final VoidCallback onOpenCargo;
+  final ValueChanged<SiteSection> onOpenSection;
   final ValueChanged<String> onOpenMyCargosWithStatus;
   final VoidCallback onOpenMyCargosActive;
 
   const OverviewSection({
     super.key,
+    required this.workspace,
     required this.cargos,
     required this.carriers,
     required this.user,
+    required this.onCreateCargo,
     required this.onOpenCargo,
+    required this.onOpenSection,
     required this.onOpenMyCargosWithStatus,
     required this.onOpenMyCargosActive,
   });
@@ -28,20 +34,24 @@ class OverviewSection extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 96),
       children: [
         AppPageHeader(
-          title: 'Обзор',
-          subtitle: 'Добро пожаловать, ${user.displayName}',
-          trailing: AppButton(
-            label: 'Добавить груз',
-            icon: Icons.add_rounded,
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => AddCargoDialog(ownerId: user.uid),
-              );
-            },
-          ),
+          title: workspace.title,
+          subtitle:
+              '${workspace.subtitle}\n${user.displayUsername} · ${user.displayRole}',
+          trailing: onCreateCargo == null
+              ? null
+              : AppButton(
+                  label: 'Добавить груз',
+                  icon: Icons.add_rounded,
+                  onPressed: onCreateCargo,
+                ),
         ),
         const SizedBox(height: 8),
+        _RoleWorkspaceHero(
+          workspace: workspace,
+          user: user,
+          onOpenSection: onOpenSection,
+        ),
+        const SizedBox(height: 24),
         _buildStatsGrid(context, stats, carriers.length),
         const SizedBox(height: 24),
         if (isWide)
@@ -49,7 +59,10 @@ class OverviewSection extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(flex: 7, child: _RecentActionsPanel(cargos: recent, onOpenCargo: onOpenCargo)),
+                Expanded(
+                    flex: 7,
+                    child: _RecentActionsPanel(
+                        cargos: recent, onOpenCargo: onOpenCargo)),
                 const SizedBox(width: 24),
                 Expanded(flex: 5, child: _NotificationsPanel()),
               ],
@@ -64,9 +77,10 @@ class OverviewSection extends StatelessWidget {
     );
   }
 
-  Widget _buildStatsGrid(BuildContext context, CargoStatsView stats, int carrierCount) {
+  Widget _buildStatsGrid(
+      BuildContext context, CargoStatsView stats, int carrierCount) {
     final averagePrice = stats.total == 0 ? 0.0 : stats.revenue / stats.total;
-    
+
     return AppResponsiveGrid(
       desktopCrossAxisCount: 4,
       tabletCrossAxisCount: 2,
@@ -91,7 +105,8 @@ class OverviewSection extends StatelessWidget {
           value: stats.waitingConfirmation.toString(),
           icon: Icons.fact_check_rounded,
           accentColor: const Color(0xFFEAB308),
-          onTap: () => onOpenMyCargosWithStatus(CargoStatus.waitingConfirmation),
+          onTap: () =>
+              onOpenMyCargosWithStatus(CargoStatus.waitingConfirmation),
         ),
         AppStatCard(
           title: 'Ожидают погрузки',
@@ -158,7 +173,8 @@ class _RecentActionsPanel extends StatelessWidget {
             const AppEmptyState(
               icon: Icons.history_rounded,
               title: 'Нет недавних действий',
-              message: 'Здесь будет отображаться история изменения ваших грузов.',
+              message:
+                  'Здесь будет отображаться история изменения ваших грузов.',
             )
           else
             AppResponsiveList(
@@ -182,7 +198,8 @@ class _RecentActionItem extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.5)),
+        border:
+            Border.all(color: Theme.of(context).dividerColor.withOpacity(0.5)),
       ),
       child: Row(
         children: [
@@ -192,7 +209,8 @@ class _RecentActionItem extends StatelessWidget {
               color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.edit_document, size: 20, color: Theme.of(context).colorScheme.primary),
+            child: Icon(Icons.edit_document,
+                size: 20, color: Theme.of(context).colorScheme.primary),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -201,7 +219,8 @@ class _RecentActionItem extends StatelessWidget {
               children: [
                 Text(
                   'Груз: ${cargo.title}',
-                  style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600),
+                  style: AppTextStyles.bodyMedium
+                      .copyWith(fontWeight: FontWeight.w600),
                 ),
                 Text(
                   'Статус изменен на "${CargoStatus.getDisplayStatus(cargo.status)}"',
@@ -260,4 +279,3 @@ class _NotificationsPanel extends StatelessWidget {
     );
   }
 }
-

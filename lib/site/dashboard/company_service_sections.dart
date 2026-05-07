@@ -626,7 +626,7 @@ class _ServiceRequestHistory extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       child: StreamBuilder<List<ServiceRequestModel>>(
         stream: SiteWorkflowRepository.instance.watchServiceRequests(
-          user.uid,
+          user,
           type: type,
         ),
         builder: (context, snapshot) {
@@ -634,9 +634,11 @@ class _ServiceRequestHistory extends StatelessWidget {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const _PanelHeader(
+              _PanelHeader(
                 icon: Icons.history_rounded,
-                title: 'История обращений',
+                title: user.isLawyer && type == 'legal'
+                    ? 'Юридические обращения'
+                    : 'История обращений',
               ),
               const SizedBox(height: 16),
               if (snapshot.connectionState == ConnectionState.waiting &&
@@ -708,7 +710,9 @@ class _ServiceRequestTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  DateFormat('dd.MM.yyyy HH:mm').format(item.createdAt),
+                  item.userName.isEmpty
+                      ? DateFormat('dd.MM.yyyy HH:mm').format(item.createdAt)
+                      : '${item.userName} · ${DateFormat('dd.MM.yyyy HH:mm').format(item.createdAt)}',
                   style: TextStyle(
                     color: colors.onSurfaceVariant,
                     fontSize: 12,

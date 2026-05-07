@@ -16,6 +16,14 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/adminAccounts/$(request.auth.uid)).data.active == true;
     }
 
+    function hasCurrentUserRole(role) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role
+          || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.roles is list
+            && role in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.roles));
+    }
+
     function ownProfileUpdate() {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
         'username',
@@ -77,6 +85,7 @@ service cloud.firestore {
         && request.resource.data.uid == uid
         && request.resource.data.role in [
           'carrier', 'logistician', 'cargo_owner', 'forwarder',
+          'lawyer',
           'carrier_forwarder', 'cargo_owner_carrier', 'logistician_carrier',
           'driver', 'driver_forwarder', 'driver_cargo_owner'
         ];
@@ -278,11 +287,13 @@ service cloud.firestore {
 
     match /serviceRequests/{requestId} {
       allow read: if isAdmin()
-        || (signedIn() && resource.data.userId == request.auth.uid);
+        || (signedIn() && resource.data.userId == request.auth.uid)
+        || (hasCurrentUserRole('lawyer') && resource.data.type == 'legal');
       allow create: if signedIn()
         && request.resource.data.userId == request.auth.uid;
       allow update: if isAdmin()
-        || (signedIn() && resource.data.userId == request.auth.uid);
+        || (signedIn() && resource.data.userId == request.auth.uid)
+        || (hasCurrentUserRole('lawyer') && resource.data.type == 'legal');
       allow delete: if isAdmin()
         || (signedIn() && resource.data.userId == request.auth.uid);
     }
