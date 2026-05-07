@@ -25,8 +25,7 @@ class TransportRepository {
     DateTime? availableFrom,
     bool? allowsReload,
   }) {
-    Query<Map<String, dynamic>> query =
-        _transports.where('status', isEqualTo: 'available');
+    Query<Map<String, dynamic>> query = _transports;
 
     if (type != null) query = query.where('type', isEqualTo: type);
     if (bodyType != null) query = query.where('bodyType', isEqualTo: bodyType);
@@ -39,8 +38,17 @@ class TransportRepository {
     if (allowsReload == true)
       query = query.where('allowsReload', isEqualTo: true);
 
-    return query.snapshots().map((snap) {
-      var list = snap.docs.map(TransportModel.fromFirestore).toList();
+    return query.limit(200).snapshots().map((snap) {
+      var list = snap.docs.map(TransportModel.fromFirestore).where((t) {
+        final normalized = t.status.trim().toLowerCase();
+        return normalized.isEmpty ||
+            normalized == 'available' ||
+            normalized == 'published' ||
+            normalized == 'active' ||
+            normalized == 'free' ||
+            normalized == 'свободен' ||
+            normalized == 'свободный';
+      }).toList();
 
       // Client-side filtering for fields that Firestore doesn't support well in combination
       if (minCapacity != null) {

@@ -104,7 +104,7 @@ class UserRepository {
     return snapshot.ref.getDownloadURL();
   }
 
-  Future<void> updateProfile({
+  Future<String?> updateProfile({
     required UserModel user,
     required String name,
     required String aboutMe,
@@ -119,6 +119,7 @@ class UserRepository {
       'aboutMe': aboutMe.trim(),
       if (avatarUrl != null) 'avatarUrl': avatarUrl,
       if (avatarUrl != null) 'photoURL': avatarUrl,
+      if (avatarUrl != null) 'avatarUpdatedAt': FieldValue.serverTimestamp(),
       if (user.isDriver) 'car': (car ?? '').trim(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
@@ -150,6 +151,8 @@ class UserRepository {
     if (avatarUrl != null && authUser?.uid == user.uid) {
       await authUser!.updatePhotoURL(avatarUrl);
     }
+
+    return avatarUrl;
   }
 
   Future<void> rateUser({

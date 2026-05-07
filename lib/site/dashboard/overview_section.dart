@@ -7,7 +7,9 @@ class OverviewSection extends StatelessWidget {
   final UserModel user;
   final VoidCallback? onCreateCargo;
   final VoidCallback onOpenCargo;
+  final ValueChanged<CargoModel> onOpenRecentCargo;
   final ValueChanged<SiteSection> onOpenSection;
+  final VoidCallback onOpenSettings;
   final ValueChanged<String> onOpenMyCargosWithStatus;
   final VoidCallback onOpenMyCargosActive;
 
@@ -19,7 +21,9 @@ class OverviewSection extends StatelessWidget {
     required this.user,
     required this.onCreateCargo,
     required this.onOpenCargo,
+    required this.onOpenRecentCargo,
     required this.onOpenSection,
+    required this.onOpenSettings,
     required this.onOpenMyCargosWithStatus,
     required this.onOpenMyCargosActive,
   });
@@ -62,16 +66,32 @@ class OverviewSection extends StatelessWidget {
                 Expanded(
                     flex: 7,
                     child: _RecentActionsPanel(
-                        cargos: recent, onOpenCargo: onOpenCargo)),
+                      cargos: recent,
+                      onOpenCargo: onOpenCargo,
+                      onOpenRecentCargo: onOpenRecentCargo,
+                    )),
                 const SizedBox(width: 24),
-                Expanded(flex: 5, child: _NotificationsPanel()),
+                Expanded(
+                  flex: 5,
+                  child: _NotificationsPanel(
+                    onOpenCargoSearch: () => onOpenSection(SiteSection.cargos),
+                    onOpenSettings: onOpenSettings,
+                  ),
+                ),
               ],
             ),
           )
         else ...[
-          _RecentActionsPanel(cargos: recent, onOpenCargo: onOpenCargo),
+          _RecentActionsPanel(
+            cargos: recent,
+            onOpenCargo: onOpenCargo,
+            onOpenRecentCargo: onOpenRecentCargo,
+          ),
           const SizedBox(height: 24),
-          _NotificationsPanel(),
+          _NotificationsPanel(
+            onOpenCargoSearch: () => onOpenSection(SiteSection.cargos),
+            onOpenSettings: onOpenSettings,
+          ),
         ],
       ],
     );
@@ -152,8 +172,13 @@ class OverviewSection extends StatelessWidget {
 class _RecentActionsPanel extends StatelessWidget {
   final List<CargoModel> cargos;
   final VoidCallback onOpenCargo;
+  final ValueChanged<CargoModel> onOpenRecentCargo;
 
-  const _RecentActionsPanel({required this.cargos, required this.onOpenCargo});
+  const _RecentActionsPanel({
+    required this.cargos,
+    required this.onOpenCargo,
+    required this.onOpenRecentCargo,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -178,7 +203,14 @@ class _RecentActionsPanel extends StatelessWidget {
             )
           else
             AppResponsiveList(
-              children: cargos.map((c) => _RecentActionItem(cargo: c)).toList(),
+              children: cargos
+                  .map(
+                    (c) => _RecentActionItem(
+                      cargo: c,
+                      onTap: () => onOpenRecentCargo(c),
+                    ),
+                  )
+                  .toList(),
             ),
         ],
       ),
@@ -188,56 +220,69 @@ class _RecentActionsPanel extends StatelessWidget {
 
 class _RecentActionItem extends StatelessWidget {
   final CargoModel cargo;
+  final VoidCallback onTap;
 
-  const _RecentActionItem({required this.cargo});
+  const _RecentActionItem({required this.cargo, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border:
-            Border.all(color: Theme.of(context).dividerColor.withOpacity(0.5)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-              shape: BoxShape.circle,
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+              color: Theme.of(context).dividerColor.withOpacity(0.5)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.edit_document,
+                  size: 20, color: Theme.of(context).colorScheme.primary),
             ),
-            child: Icon(Icons.edit_document,
-                size: 20, color: Theme.of(context).colorScheme.primary),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Груз: ${cargo.title}',
-                  style: AppTextStyles.bodyMedium
-                      .copyWith(fontWeight: FontWeight.w600),
-                ),
-                Text(
-                  'Статус изменен на "${CargoStatus.getDisplayStatus(cargo.status)}"',
-                  style: AppTextStyles.caption,
-                ),
-              ],
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Груз: ${cargo.title}',
+                    style: AppTextStyles.bodyMedium
+                        .copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    'Статус изменен на "${CargoStatus.getDisplayStatus(cargo.status)}"',
+                    style: AppTextStyles.caption,
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 8),
-          CargoStatusBadge(status: cargo.status),
-        ],
+            const SizedBox(width: 8),
+            CargoStatusBadge(status: cargo.status),
+          ],
+        ),
       ),
     );
   }
 }
 
 class _NotificationsPanel extends StatelessWidget {
+  final VoidCallback onOpenCargoSearch;
+  final VoidCallback onOpenSettings;
+
+  const _NotificationsPanel({
+    required this.onOpenCargoSearch,
+    required this.onOpenSettings,
+  });
+
   @override
   Widget build(BuildContext context) {
     return AppCard(
@@ -264,13 +309,13 @@ class _NotificationsPanel extends StatelessWidget {
                 label: 'Поиск груза',
                 icon: Icons.search_rounded,
                 variant: AppButtonVariant.secondary,
-                onPressed: () {},
+                onPressed: onOpenCargoSearch,
               ),
               AppButton(
                 label: 'Настройки',
                 icon: Icons.settings_rounded,
                 variant: AppButtonVariant.ghost,
-                onPressed: () {},
+                onPressed: onOpenSettings,
               ),
             ],
           )

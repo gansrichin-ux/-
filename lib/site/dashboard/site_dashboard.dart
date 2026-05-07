@@ -375,10 +375,19 @@ class _SiteDashboardState extends State<SiteDashboard> {
               ? () => _showCargoDialog(context)
               : null,
           onOpenCargo: () => setState(() => _section = SiteSection.myCargos),
+          onOpenRecentCargo: (cargo) {
+            setState(() {
+              _section = SiteSection.myCargos;
+              _query = cargo.title;
+              _status = null;
+              _filters = CargoFilters.empty;
+            });
+          },
           onOpenSection: (section) {
             if (!_visibleSections.contains(section)) return;
             setState(() => _section = section);
           },
+          onOpenSettings: () => _openProfileSettings(widget.user),
           onOpenMyCargosWithStatus: (status) {
             setState(() {
               _section = SiteSection.myCargos;
@@ -425,6 +434,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
           onAddCargo: () => _showCargoDialog(context),
           onAssignCarrier: _assignCarrier,
           onChangeStatus: _changeStatus,
+          onDeleteCargo: _deleteCargo,
           onOpenChat: (cargo) => _openChatForCargo(cargo, users),
           onOpenProfile: _openProfile,
           favoriteCargoIds: favoriteCargoIds,
@@ -449,6 +459,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
           onAddCargo: () => _showCargoDialog(context),
           onAssignCarrier: _assignCarrier,
           onChangeStatus: _changeStatus,
+          onDeleteCargo: _deleteCargo,
           onOpenChat: (cargo) => _openChatForCargo(cargo, users),
           onOpenProfile: _openProfile,
           favoriteCargoIds: favoriteCargoIds,
@@ -514,6 +525,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
           onAddCargo: () => _showCargoDialog(context),
           onAssignCarrier: _assignCarrier,
           onChangeStatus: _changeStatus,
+          onDeleteCargo: _deleteCargo,
           onOpenChat: (cargo) => _openChatForCargo(cargo, users),
           onOpenProfile: _openProfile,
           favoriteCargoIds: favoriteCargoIds,
@@ -615,6 +627,12 @@ class _SiteDashboardState extends State<SiteDashboard> {
   Future<void> _openProfile(UserModel profile) async {
     context
         .push('/profile/${profile.profileSlug}/${ProfileSection.account.path}');
+  }
+
+  Future<void> _openProfileSettings(UserModel profile) async {
+    context.push(
+      '/profile/${profile.profileSlug}/${ProfileSection.settings.path}',
+    );
   }
 
   Future<void> _openNotificationSource(
@@ -901,6 +919,21 @@ class _SiteDashboardState extends State<SiteDashboard> {
     }
   }
 
+  Future<void> _deleteCargo(CargoModel cargo) async {
+    try {
+      await CargoRepository.instance.deleteCargo(cargo.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Груз удален')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Не удалось удалить груз: $error')),
+      );
+    }
+  }
+
   Future<void> _applyToCargo(CargoModel cargo, String note) async {
     try {
       await SiteWorkflowRepository.instance.applyToCargo(
@@ -1042,7 +1075,7 @@ IconData _sectionIcon(SiteSection section, {required bool selected}) {
     case SiteSection.company:
       return selected ? Icons.business_rounded : Icons.business_outlined;
     case SiteSection.myCargos:
-      return selected ? Icons.add_box_rounded : Icons.add_box_outlined;
+      return selected ? Icons.inventory_rounded : Icons.inventory_2_outlined;
     case SiteSection.cargos:
       return selected ? Icons.inventory_2_rounded : Icons.inventory_2_outlined;
     case SiteSection.tender:
@@ -1056,23 +1089,19 @@ IconData _sectionIcon(SiteSection section, {required bool selected}) {
           ? Icons.notifications_active_rounded
           : Icons.notifications_none_rounded;
     case SiteSection.carriers:
-      return selected
-          ? Icons.local_shipping_rounded
-          : Icons.local_shipping_outlined;
+      return selected ? Icons.badge_rounded : Icons.badge_outlined;
     case SiteSection.users:
       return selected ? Icons.badge_rounded : Icons.badge_outlined;
     case SiteSection.favorites:
-      return selected
-          ? Icons.check_circle_rounded
-          : Icons.check_circle_outline_rounded;
+      return selected ? Icons.star_rounded : Icons.star_border_rounded;
     case SiteSection.activity:
       return selected ? Icons.manage_history_rounded : Icons.history_rounded;
     case SiteSection.findTransport:
       return selected
-          ? Icons.local_shipping_rounded
-          : Icons.local_shipping_outlined;
+          ? Icons.travel_explore_rounded
+          : Icons.travel_explore_outlined;
     case SiteSection.myTransport:
-      return selected ? Icons.commute_rounded : Icons.commute_outlined;
+      return selected ? Icons.garage_rounded : Icons.garage_outlined;
     case SiteSection.insurance:
       return selected
           ? Icons.verified_user_rounded

@@ -173,6 +173,7 @@ class ServiceRequestModel {
   final String title;
   final String message;
   final String status;
+  final Map<String, dynamic> metadata;
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -184,6 +185,7 @@ class ServiceRequestModel {
     required this.title,
     required this.message,
     required this.status,
+    this.metadata = const {},
     required this.createdAt,
     this.updatedAt,
   });
@@ -198,6 +200,7 @@ class ServiceRequestModel {
       title: data['title'] as String? ?? '',
       message: data['message'] as String? ?? '',
       status: data['status'] as String? ?? 'open',
+      metadata: Map<String, dynamic>.from(data['metadata'] as Map? ?? {}),
       createdAt: _readWorkflowDate(data['createdAt']),
       updatedAt: data['updatedAt'] == null
           ? null

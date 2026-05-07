@@ -50,6 +50,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
   bool _isLoading = false;
   bool _isRating = false;
   XFile? _selectedAvatar;
+  String? _localAvatarUrl;
   int? _selectedScore;
 
   @override
@@ -83,7 +84,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
   Future<void> _saveProfile(UserModel currentUser) async {
     setState(() => _isLoading = true);
     try {
-      await UserRepository.instance.updateProfile(
+      final uploadedAvatarUrl = await UserRepository.instance.updateProfile(
         user: currentUser,
         name: _nameController.text,
         aboutMe: _aboutController.text,
@@ -95,6 +96,9 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
       setState(() {
         _isEditing = false;
         _selectedAvatar = null;
+        if (uploadedAvatarUrl != null) {
+          _localAvatarUrl = uploadedAvatarUrl;
+        }
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Профиль обновлен')),
@@ -233,6 +237,9 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
             builder: (context, authSnapshot) {
               final currentUser = authSnapshot.data;
               final isOwner = currentUser?.uid == profileUser.uid;
+              final visibleProfileUser = isOwner && _localAvatarUrl != null
+                  ? profileUser.copyWith(avatarUrl: _localAvatarUrl)
+                  : profileUser;
 
               return ListView(
                 padding: const EdgeInsets.fromLTRB(22, 18, 22, 48),
@@ -244,23 +251,24 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _ProfileHero(
-                            user: profileUser,
+                            user: visibleProfileUser,
                             isOwner: isOwner,
                             section: widget.section,
-                            onEdit: () => _startEditing(profileUser),
+                            onEdit: () => _startEditing(visibleProfileUser),
                             onDashboard: () => context.go('/dashboard'),
                             onReport: currentUser == null || isOwner
                                 ? null
-                                : () => _reportUser(profileUser, currentUser),
+                                : () =>
+                                    _reportUser(visibleProfileUser, currentUser),
                           ),
                           const SizedBox(height: 14),
                           _ProfileTabs(
-                            profile: profileUser,
+                            profile: visibleProfileUser,
                             selected: widget.section,
                           ),
                           const SizedBox(height: 16),
                           _buildSection(
-                            profileUser: profileUser,
+                            profileUser: visibleProfileUser,
                             currentUser: currentUser,
                             users: users,
                             isOwner: isOwner,

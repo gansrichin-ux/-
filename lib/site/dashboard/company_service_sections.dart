@@ -30,6 +30,7 @@ class _CompanySectionState extends State<CompanySection> {
 
   bool _loadedInitial = false;
   bool _isSaving = false;
+  bool _isEditing = true;
 
   @override
   void dispose() {
@@ -53,6 +54,18 @@ class _CompanySectionState extends State<CompanySection> {
     _phoneController.text = data?['phone'] as String? ?? '';
     _addressController.text = data?['address'] as String? ?? '';
     _descriptionController.text = data?['description'] as String? ?? '';
+    _isEditing = !_companyDataComplete;
+  }
+
+  bool get _companyDataComplete {
+    return [
+      _nameController.text,
+      _typeController.text,
+      _binController.text,
+      _phoneController.text,
+      _addressController.text,
+      _descriptionController.text,
+    ].every((value) => value.trim().isNotEmpty);
   }
 
   Future<void> _save() async {
@@ -68,6 +81,7 @@ class _CompanySectionState extends State<CompanySection> {
         description: _descriptionController.text,
       );
       if (!mounted) return;
+      setState(() => _isEditing = !_companyDataComplete);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Данные компании сохранены')),
       );
@@ -111,16 +125,26 @@ class _CompanySectionState extends State<CompanySection> {
             LayoutBuilder(
               builder: (context, constraints) {
                 final compact = constraints.maxWidth < 900;
-                final form = _CompanyProfileForm(
-                  nameController: _nameController,
-                  typeController: _typeController,
-                  binController: _binController,
-                  phoneController: _phoneController,
-                  addressController: _addressController,
-                  descriptionController: _descriptionController,
-                  isSaving: _isSaving,
-                  onSave: _save,
-                );
+                final form = _isEditing || !_companyDataComplete
+                    ? _CompanyProfileForm(
+                        nameController: _nameController,
+                        typeController: _typeController,
+                        binController: _binController,
+                        phoneController: _phoneController,
+                        addressController: _addressController,
+                        descriptionController: _descriptionController,
+                        isSaving: _isSaving,
+                        onSave: _save,
+                      )
+                    : _CompanyProfileSummary(
+                        name: _nameController.text,
+                        type: _typeController.text,
+                        bin: _binController.text,
+                        phone: _phoneController.text,
+                        address: _addressController.text,
+                        description: _descriptionController.text,
+                        onEdit: () => setState(() => _isEditing = true),
+                      );
                 final side = _CompanySidePanel(
                   user: widget.user,
                   employees: employees,
@@ -232,6 +256,127 @@ class _CompanyProfileForm extends StatelessWidget {
               icon: Icons.save_outlined,
               isLoading: isSaving,
               onPressed: isSaving ? null : onSave,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompanyProfileSummary extends StatelessWidget {
+  final String name;
+  final String type;
+  final String bin;
+  final String phone;
+  final String address;
+  final String description;
+  final VoidCallback onEdit;
+
+  const _CompanyProfileSummary({
+    required this.name,
+    required this.type,
+    required this.bin,
+    required this.phone,
+    required this.address,
+    required this.description,
+    required this.onEdit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return AppCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: _PanelHeader(
+                  icon: Icons.business_center_outlined,
+                  title: 'Ваша компания',
+                ),
+              ),
+              AppButton(
+                label: 'Редактировать',
+                icon: Icons.edit_outlined,
+                variant: AppButtonVariant.secondary,
+                onPressed: onEdit,
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Text(
+            name,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w900,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            description,
+            style: TextStyle(
+              color: colors.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 18),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _CompanyInfoChip(
+                icon: Icons.work_outline_rounded,
+                label: type,
+              ),
+              _CompanyInfoChip(
+                icon: Icons.badge_outlined,
+                label: 'БИН/ИИН $bin',
+              ),
+              _CompanyInfoChip(
+                icon: Icons.phone_outlined,
+                label: phone,
+              ),
+              _CompanyInfoChip(
+                icon: Icons.location_on_outlined,
+                label: address,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompanyInfoChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _CompanyInfoChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: colors.primary.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: colors.primary.withOpacity(0.18)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 17, color: colors.primary),
+          const SizedBox(width: 7),
+          Text(
+            label,
+            style: TextStyle(
+              color: colors.onSurface,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],
@@ -674,52 +819,157 @@ class _ServiceRequestTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final resolved = item.status == 'closed' || item.status == 'resolved';
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Theme.of(context).dividerColor),
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () => _showDetails(context),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Theme.of(context).dividerColor),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              resolved
+                  ? Icons.task_alt_rounded
+                  : Icons.pending_actions_outlined,
+              color: resolved ? const Color(0xFF16A34A) : colors.primary,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    item.message,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: colors.onSurfaceVariant,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    item.userName.isEmpty
+                        ? DateFormat('dd.MM.yyyy HH:mm').format(item.createdAt)
+                        : '${item.userName} · ${DateFormat('dd.MM.yyyy HH:mm').format(item.createdAt)}',
+                    style: TextStyle(
+                      color: colors.onSurfaceVariant,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(Icons.chevron_right_rounded, color: colors.onSurfaceVariant),
+          ],
+        ),
       ),
+    );
+  }
+
+  Future<void> _showDetails(BuildContext context) async {
+    final metadata = item.metadata.entries
+        .where((entry) => entry.value != null && '${entry.value}'.isNotEmpty)
+        .toList();
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(item.title),
+        content: SizedBox(
+          width: 520,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _RequestDetailRow(label: 'Статус', value: item.status),
+                _RequestDetailRow(
+                  label: 'Создано',
+                  value: DateFormat('dd.MM.yyyy HH:mm').format(item.createdAt),
+                ),
+                if (item.updatedAt != null)
+                  _RequestDetailRow(
+                    label: 'Обновлено',
+                    value:
+                        DateFormat('dd.MM.yyyy HH:mm').format(item.updatedAt!),
+                  ),
+                if (item.userName.isNotEmpty)
+                  _RequestDetailRow(label: 'Автор', value: item.userName),
+                const SizedBox(height: 12),
+                Text(
+                  item.message,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                if (metadata.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  ...metadata.map(
+                    (entry) => _RequestDetailRow(
+                      label: entry.key,
+                      value: '${entry.value}',
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Закрыть'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RequestDetailRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _RequestDetailRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            resolved ? Icons.task_alt_rounded : Icons.pending_actions_outlined,
-            color: resolved ? const Color(0xFF16A34A) : colors.primary,
+          SizedBox(
+            width: 110,
+            child: Text(
+              label,
+              style: TextStyle(
+                color: colors.onSurfaceVariant,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
-          const SizedBox(width: 10),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w900),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  item.message,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: colors.onSurfaceVariant,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  item.userName.isEmpty
-                      ? DateFormat('dd.MM.yyyy HH:mm').format(item.createdAt)
-                      : '${item.userName} · ${DateFormat('dd.MM.yyyy HH:mm').format(item.createdAt)}',
-                  style: TextStyle(
-                    color: colors.onSurfaceVariant,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
+            child: Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.w800),
             ),
           ),
         ],

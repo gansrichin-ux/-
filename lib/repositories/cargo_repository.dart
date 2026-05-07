@@ -147,6 +147,10 @@ class CargoRepository {
     await _cargos.doc(cargoId).update({'status': status});
   }
 
+  Future<void> deleteCargo(String cargoId) async {
+    await _cargos.doc(cargoId).delete();
+  }
+
   Future<String> uploadPhoto(
     String cargoId,
     Object file,

@@ -19,6 +19,7 @@ class CargosSection extends StatelessWidget {
   final Future<void> Function(CargoModel cargo, UserModel carrier)
       onAssignCarrier;
   final Future<void> Function(CargoModel cargo, String status) onChangeStatus;
+  final Future<void> Function(CargoModel cargo) onDeleteCargo;
   final Future<void> Function(CargoModel cargo) onOpenChat;
   final Future<void> Function(UserModel user) onOpenProfile;
   final Set<String> favoriteCargoIds;
@@ -50,6 +51,7 @@ class CargosSection extends StatelessWidget {
     required this.onAddCargo,
     required this.onAssignCarrier,
     required this.onChangeStatus,
+    required this.onDeleteCargo,
     required this.onOpenChat,
     required this.onOpenProfile,
     required this.favoriteCargoIds,
@@ -117,6 +119,7 @@ class CargosSection extends StatelessWidget {
                       user: user,
                       onAssignCarrier: onAssignCarrier,
                       onChangeStatus: onChangeStatus,
+                      onDeleteCargo: onDeleteCargo,
                       onOpenChat: onOpenChat,
                       onOpenProfile: onOpenProfile,
                       isFavorite: favoriteCargoIds.contains(cargo.id),
@@ -746,6 +749,7 @@ class CargoWebCard extends StatelessWidget {
   final Future<void> Function(CargoModel cargo, UserModel carrier)
       onAssignCarrier;
   final Future<void> Function(CargoModel cargo, String status) onChangeStatus;
+  final Future<void> Function(CargoModel cargo) onDeleteCargo;
   final Future<void> Function(CargoModel cargo) onOpenChat;
   final Future<void> Function(UserModel user) onOpenProfile;
   final bool isFavorite;
@@ -765,6 +769,7 @@ class CargoWebCard extends StatelessWidget {
     required this.user,
     required this.onAssignCarrier,
     required this.onChangeStatus,
+    required this.onDeleteCargo,
     required this.onOpenChat,
     required this.onOpenProfile,
     required this.isFavorite,
@@ -1129,6 +1134,18 @@ class CargoWebCard extends StatelessWidget {
       ]);
     }
 
+    if (isOwner || user.isAdmin) {
+      widgets.addAll([
+        const SizedBox(width: 12, height: 12),
+        AppButton(
+          label: 'Удалить',
+          icon: Icons.delete_outline_rounded,
+          variant: AppButtonVariant.outlined,
+          onPressed: () => _confirmDelete(context),
+        ),
+      ]);
+    }
+
     return widgets;
   }
 
@@ -1240,6 +1257,36 @@ class CargoWebCard extends StatelessWidget {
     );
 
     if (carrier != null) await onAssignCarrier(cargo, carrier);
+  }
+
+  Future<void> _confirmDelete(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Удалить груз?'),
+        content: Text(
+          'Груз "${cargo.title}" будет удален из системы. Это действие нельзя отменить.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.delete_outline_rounded),
+            label: const Text('Да, удалить'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await onDeleteCargo(cargo);
+    }
   }
 }
 

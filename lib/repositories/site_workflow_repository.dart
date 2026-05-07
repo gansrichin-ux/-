@@ -48,7 +48,22 @@ class SiteWorkflowRepository {
   Stream<List<CargoApplicationModel>> watchApplicationsForUser(UserModel user) {
     if (user.isAdmin) return watchAllApplications();
 
-    final field = user.isCarrier ? 'applicantId' : 'ownerId';
+    // If user has both roles, we need to see both sent applications and received ones.
+    // Since Firestore 'where' queries are AND by default, we use client-side filtering
+    // for hybrid roles to keep it simple and avoid multiple streams.
+    if (user.canCreateCargo && user.canApplyToCargo) {
+      return _applications.limit(200).snapshots().map((snap) {
+        final items = snap.docs
+            .map(CargoApplicationModel.fromFirestore)
+            .where((app) =>
+                app.ownerId == user.uid || app.applicantId == user.uid)
+            .toList();
+        items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return items;
+      });
+    }
+
+    final field = user.canApplyToCargo ? 'applicantId' : 'ownerId';
     return _applications
         .where(field, isEqualTo: user.uid)
         .limit(160)
