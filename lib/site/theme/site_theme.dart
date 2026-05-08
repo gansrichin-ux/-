@@ -47,14 +47,27 @@ ThemeData _buildTheme({
   required Color border,
   required Color muted,
 }) {
+  const fontFamily = 'Segoe UI';
+  const fontFallback = ['Arial', 'Roboto', 'sans-serif'];
   final base = ThemeData(
     useMaterial3: true,
     colorScheme: scheme,
     scaffoldBackgroundColor: scaffold,
-    fontFamily: 'Roboto',
+    fontFamily: fontFamily,
+    fontFamilyFallback: fontFallback,
   );
 
   return base.copyWith(
+    textTheme: _buildSiteTextTheme(
+      base.textTheme,
+      scheme: scheme,
+      muted: muted,
+    ),
+    primaryTextTheme: _buildSiteTextTheme(
+      base.primaryTextTheme,
+      scheme: scheme,
+      muted: muted,
+    ),
     cardColor: card,
     dividerColor: border,
     appBarTheme: AppBarTheme(
@@ -63,10 +76,10 @@ ThemeData _buildTheme({
       elevation: 0,
       scrolledUnderElevation: 0,
       centerTitle: false,
-      titleTextStyle: TextStyle(
+      titleTextStyle: AppTextStyles.titleMedium.copyWith(
         color: scheme.onSurface,
-        fontSize: 18,
-        fontWeight: FontWeight.w800,
+        fontFamily: fontFamily,
+        fontFamilyFallback: fontFallback,
       ),
     ),
     cardTheme: CardThemeData(
@@ -82,7 +95,10 @@ ThemeData _buildTheme({
       style: FilledButton.styleFrom(
         minimumSize: const Size(44, 44),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        textStyle: const TextStyle(fontWeight: FontWeight.w800),
+        textStyle: AppTextStyles.button.copyWith(
+          fontFamily: fontFamily,
+          fontFamilyFallback: fontFallback,
+        ),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
@@ -90,7 +106,10 @@ ThemeData _buildTheme({
         minimumSize: const Size(44, 44),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         side: BorderSide(color: border),
-        textStyle: const TextStyle(fontWeight: FontWeight.w800),
+        textStyle: AppTextStyles.button.copyWith(
+          fontFamily: fontFamily,
+          fontFamilyFallback: fontFallback,
+        ),
       ),
     ),
     iconButtonTheme: IconButtonThemeData(
@@ -114,8 +133,8 @@ ThemeData _buildTheme({
         borderRadius: BorderRadius.circular(8),
         borderSide: BorderSide(color: scheme.primary, width: 1.5),
       ),
-      labelStyle: TextStyle(color: muted),
-      hintStyle: TextStyle(color: muted),
+      labelStyle: AppTextStyles.bodyMedium.copyWith(color: muted),
+      hintStyle: AppTextStyles.bodyMedium.copyWith(color: muted),
     ),
     chipTheme: base.chipTheme.copyWith(
       shape: RoundedRectangleBorder(
@@ -130,16 +149,63 @@ ThemeData _buildTheme({
       unselectedIconTheme: IconThemeData(color: muted),
       selectedLabelTextStyle: TextStyle(
         color: scheme.onSurface,
-        fontWeight: FontWeight.w800,
+        fontFamily: fontFamily,
+        fontFamilyFallback: fontFallback,
+        fontSize: 13,
+        height: 1.25,
+        letterSpacing: 0,
+        fontWeight: FontWeight.w700,
       ),
       unselectedLabelTextStyle: TextStyle(
         color: muted,
-        fontWeight: FontWeight.w700,
+        fontFamily: fontFamily,
+        fontFamilyFallback: fontFallback,
+        fontSize: 13,
+        height: 1.25,
+        letterSpacing: 0,
+        fontWeight: FontWeight.w600,
       ),
     ),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     ),
+  );
+}
+
+TextTheme _buildSiteTextTheme(
+  TextTheme base, {
+  required ColorScheme scheme,
+  required Color muted,
+}) {
+  return base.copyWith(
+    displayLarge: AppTextStyles.display.copyWith(color: scheme.onSurface),
+    displayMedium: AppTextStyles.display.copyWith(
+      color: scheme.onSurface,
+      fontSize: 36,
+      height: 1.1,
+    ),
+    headlineLarge: AppTextStyles.titleLarge.copyWith(
+      color: scheme.onSurface,
+      fontSize: 32,
+    ),
+    headlineMedium: AppTextStyles.titleLarge.copyWith(
+      color: scheme.onSurface,
+    ),
+    headlineSmall: AppTextStyles.titleMedium.copyWith(
+      color: scheme.onSurface,
+      fontSize: 22,
+    ),
+    titleLarge: AppTextStyles.titleMedium.copyWith(color: scheme.onSurface),
+    titleMedium: AppTextStyles.titleSmall.copyWith(color: scheme.onSurface),
+    titleSmall: AppTextStyles.label.copyWith(color: scheme.onSurface),
+    bodyLarge: AppTextStyles.bodyLarge.copyWith(color: scheme.onSurface),
+    bodyMedium: AppTextStyles.bodyMedium.copyWith(
+      color: scheme.onSurfaceVariant,
+    ),
+    bodySmall: AppTextStyles.bodySmall.copyWith(color: muted),
+    labelLarge: AppTextStyles.button.copyWith(color: scheme.onSurface),
+    labelMedium: AppTextStyles.label.copyWith(color: scheme.onSurfaceVariant),
+    labelSmall: AppTextStyles.caption.copyWith(color: muted),
   );
 }
