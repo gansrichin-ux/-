@@ -49,8 +49,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: _passwordController.text,
         role: _role,
         username: _usernameController.text,
-        name: _role == 'driver' ? _nameController.text : null,
-        car: _role == 'driver' ? _carController.text : null,
+        name: (_role == 'carrier' || _role.contains('carrier')) ? _nameController.text : null,
+        car: (_role == 'carrier' || _role.contains('carrier')) ? _carController.text : null,
       );
 
       // debug: print('UI: Registration finished, closing all auth screens');
@@ -243,17 +243,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   },
                 ),
 
-                // Поля только для водителя
-                if (_role == 'driver') ...[
+                // Поля только для перевозчика
+                if (_role == 'carrier' || _role.contains('carrier')) ...[
                   const SizedBox(height: 20),
-                  const AuthLabel('ФИО водителя'),
+                  const AuthLabel('ФИО перевозчика'),
                   const SizedBox(height: 8),
                   AuthInputField(
                     controller: _nameController,
                     hintText: 'Иванов Иван Иванович',
                     prefixIcon: Icons.person_outline_rounded,
                     validator: (v) {
-                      if (_role == 'driver' &&
+                      if ((_role == 'carrier' || _role.contains('carrier')) &&
                           (v == null || v.trim().isEmpty)) {
                         return 'Введите ФИО';
                       }
@@ -261,16 +261,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                   ),
                   const SizedBox(height: 20),
-                  const AuthLabel('Марка и номер автомобиля'),
+                  const AuthLabel('Бригада / транспорт'),
                   const SizedBox(height: 8),
                   AuthInputField(
                     controller: _carController,
                     hintText: 'Volvo FH16 • А123БВ 77',
                     prefixIcon: Icons.local_shipping_outlined,
                     validator: (v) {
-                      if (_role == 'driver' &&
+                      if ((_role == 'carrier' || _role.contains('carrier')) &&
                           (v == null || v.trim().isEmpty)) {
-                        return 'Введите данные автомобиля';
+                        return 'Введите данные транспорта';
                       }
                       return null;
                     },
@@ -333,20 +333,52 @@ class _RoleSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
       children: [
-        _RoleTile(
-          label: 'Логист',
-          icon: Icons.admin_panel_settings_outlined,
-          value: 'logistician',
-          selected: selected,
-          onTap: onChanged,
+        Row(
+          children: [
+            _RoleTile(
+              label: 'Логист',
+              icon: Icons.admin_panel_settings_outlined,
+              value: 'logistician',
+              selected: selected,
+              onTap: onChanged,
+            ),
+            const SizedBox(width: 12),
+            _RoleTile(
+              label: 'Перевозчик',
+              icon: Icons.local_shipping_outlined,
+              value: 'carrier',
+              selected: selected,
+              onTap: onChanged,
+            ),
+          ],
         ),
-        const SizedBox(width: 12),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            _RoleTile(
+              label: 'Грузовладелец',
+              icon: Icons.business_center_outlined,
+              value: 'cargo_owner',
+              selected: selected,
+              onTap: onChanged,
+            ),
+            const SizedBox(width: 12),
+            _RoleTile(
+              label: 'Экспедитор',
+              icon: Icons.assignment_ind_outlined,
+              value: 'forwarder',
+              selected: selected,
+              onTap: onChanged,
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
         _RoleTile(
-          label: 'Водитель',
-          icon: Icons.local_shipping_outlined,
-          value: 'driver',
+          label: 'Перевозчик-Экспедитор',
+          icon: Icons.handshake_outlined,
+          value: 'carrier_forwarder',
           selected: selected,
           onTap: onChanged,
         ),

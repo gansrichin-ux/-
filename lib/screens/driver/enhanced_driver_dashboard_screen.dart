@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../core/providers/auth_providers.dart';
+import '../../core/config/cargo_statuses.dart';
 import '../../core/providers/location_providers.dart';
 import '../../core/providers/cargo_providers.dart';
 import '../../models/user_model.dart';
@@ -39,10 +40,9 @@ class _EnhancedDriverDashboardScreenState
           child: CircularProgressIndicator(color: Color(0xFF3B82F6)),
         ),
       ),
-      onError: (error) =>
-          Scaffold(body: Center(child: Text('РћС€РёР±РєР°: $error'))),
-      unauthenticated: () => const Scaffold(
-          body: Center(child: Text('РќРµ Р°РІС‚РѕСЂРёР·РѕРІР°РЅ'))),
+      onError: (error) => Scaffold(body: Center(child: Text('Ошибка: $error'))),
+      unauthenticated: () =>
+          const Scaffold(body: Center(child: Text('Не авторизован'))),
     );
   }
 
@@ -54,17 +54,17 @@ class _EnhancedDriverDashboardScreenState
   ) {
     if (user == null) {
       return const Scaffold(
-        body: Center(child: Text('РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ РЅРµ РЅР°Р№РґРµРЅ')),
+        body: Center(child: Text('Пользователь не найден')),
       );
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('РџР°РЅРµР»СЊ РІРѕРґРёС‚РµР»СЏ'),
+        title: const Text('Панель водителя'),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_rounded),
-            tooltip: 'РќР°СЃС‚СЂРѕР№РєРё',
+            tooltip: 'Настройки',
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const SettingsScreen()),
@@ -154,7 +154,7 @@ class _EnhancedDriverDashboardScreenState
                           ),
                           const SizedBox(width: 8),
                           const Text(
-                            'РћС‚СЃР»РµР¶РёРІР°РЅРёРµ РјРµСЃС‚РѕРїРѕР»РѕР¶РµРЅРёСЏ',
+                            'Отслеживание местоположения',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -182,7 +182,7 @@ class _EnhancedDriverDashboardScreenState
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text(
-                  'РњРѕРё РіСЂСѓР·С‹',
+                  'Мои грузы',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
@@ -201,9 +201,7 @@ class _EnhancedDriverDashboardScreenState
                     child: Center(child: CircularProgressIndicator()),
                   ),
                   error: (error, stackTrace) => const SliverToBoxAdapter(
-                    child: Center(
-                        child:
-                            Text('РћС€РёР±РєР° Р·Р°РіСЂСѓР·РєРё РіСЂСѓР·РѕРІ')),
+                    child: Center(child: Text('Ошибка загрузки грузов')),
                   ),
                 );
               },
@@ -222,7 +220,7 @@ class _EnhancedDriverDashboardScreenState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'РўРµРєСѓС‰РµРµ РјРµСЃС‚РѕРїРѕР»РѕР¶РµРЅРёРµ',
+            'Текущее местоположение',
             style: const TextStyle(fontSize: 12, color: Colors.grey),
           ),
           const SizedBox(height: 4),
@@ -233,23 +231,22 @@ class _EnhancedDriverDashboardScreenState
           ...[
             const SizedBox(height: 4),
             Text(
-              'РўРѕС‡РЅРѕСЃС‚СЊ: В±${pos.accuracy.toStringAsFixed(0)}Рј',
+              'Точность: ±${pos.accuracy.toStringAsFixed(0)}м',
               style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ],
         ],
       ),
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stackTrace) => const Center(
-          child: Text(
-              'РћС€РёР±РєР° РѕРїСЂРµРґРµР»РµРЅРёСЏ РјРµСЃС‚РѕРїРѕР»РѕР¶РµРЅРёСЏ')),
+      error: (error, stackTrace) =>
+          const Center(child: Text('Ошибка определения местоположения')),
     );
   }
 
   Widget _buildCargosList(List<CargoModel> cargos) {
     if (cargos.isEmpty) {
       return const SliverToBoxAdapter(
-        child: Center(child: Text('РЈ РІР°СЃ РїРѕРєР° РЅРµС‚ РіСЂСѓР·РѕРІ')),
+        child: Center(child: Text('У вас пока нет грузов')),
       );
     }
 
@@ -261,7 +258,7 @@ class _EnhancedDriverDashboardScreenState
           child: Card(
             child: ListTile(
               title: Text(cargo.title),
-              subtitle: Text('${cargo.from} в†’ ${cargo.to}'),
+              subtitle: Text('${cargo.from} → ${cargo.to}'),
               trailing: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -269,7 +266,7 @@ class _EnhancedDriverDashboardScreenState
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  cargo.status,
+                  CargoStatus.getDisplayStatus(cargo.status),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,
@@ -291,13 +288,13 @@ class _EnhancedDriverDashboardScreenState
 
   Color _getStatusColor(String status) {
     switch (status) {
-      case 'РќРѕРІС‹Р№':
+      case CargoStatus.published:
         return const Color(0xFF22C55E);
-      case 'Р’ РїСѓС‚Рё':
+      case CargoStatus.inTransit:
         return const Color(0xFF3B82F6);
-      case 'Р”РѕСЃС‚Р°РІР»РµРЅ':
+      case CargoStatus.delivered:
         return const Color(0xFF10B981);
-      case 'РћС‚РјРµРЅРµРЅ':
+      case CargoStatus.cancelled:
         return const Color(0xFFEF4444);
       default:
         return Colors.grey;

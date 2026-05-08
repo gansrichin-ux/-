@@ -100,6 +100,10 @@ class ActivityLogModel {
   final String actorId;
   final String actorName;
   final String? cargoId;
+  final String? targetType;
+  final String? targetId;
+  final String? targetTitle;
+  final Map<String, dynamic> metadata;
   final String type;
   final DateTime createdAt;
 
@@ -112,6 +116,10 @@ class ActivityLogModel {
     required this.type,
     required this.createdAt,
     this.cargoId,
+    this.targetType,
+    this.targetId,
+    this.targetTitle,
+    this.metadata = const {},
   });
 
   factory ActivityLogModel.fromFirestore(DocumentSnapshot doc) {
@@ -123,10 +131,20 @@ class ActivityLogModel {
       actorId: data['actorId'] as String? ?? '',
       actorName: data['actorName'] as String? ?? '',
       cargoId: data['cargoId'] as String?,
+      targetType: data['targetType'] as String? ??
+          (data['cargoId'] != null ? 'cargo' : null),
+      targetId: (data['targetId'] as String?) ?? (data['cargoId'] as String?),
+      targetTitle: data['targetTitle'] as String?,
+      metadata: Map<String, dynamic>.from(
+        data['metadata'] as Map<String, dynamic>? ?? const {},
+      ),
       type: data['type'] as String? ?? 'system',
       createdAt: _readWorkflowDate(data['createdAt']),
     );
   }
+
+  bool get hasTarget =>
+      targetType?.isNotEmpty == true && targetId?.isNotEmpty == true;
 }
 
 class UserReportModel {
@@ -161,6 +179,50 @@ class UserReportModel {
       reason: data['reason'] as String? ?? '',
       status: data['status'] as String? ?? 'open',
       createdAt: _readWorkflowDate(data['createdAt']),
+    );
+  }
+}
+
+class ServiceRequestModel {
+  final String id;
+  final String userId;
+  final String userName;
+  final String type;
+  final String title;
+  final String message;
+  final String status;
+  final Map<String, dynamic> metadata;
+  final DateTime createdAt;
+  final DateTime? updatedAt;
+
+  const ServiceRequestModel({
+    required this.id,
+    required this.userId,
+    required this.userName,
+    required this.type,
+    required this.title,
+    required this.message,
+    required this.status,
+    this.metadata = const {},
+    required this.createdAt,
+    this.updatedAt,
+  });
+
+  factory ServiceRequestModel.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+    return ServiceRequestModel(
+      id: doc.id,
+      userId: data['userId'] as String? ?? '',
+      userName: data['userName'] as String? ?? '',
+      type: data['type'] as String? ?? 'support',
+      title: data['title'] as String? ?? '',
+      message: data['message'] as String? ?? '',
+      status: data['status'] as String? ?? 'open',
+      metadata: Map<String, dynamic>.from(data['metadata'] as Map? ?? {}),
+      createdAt: _readWorkflowDate(data['createdAt']),
+      updatedAt: data['updatedAt'] == null
+          ? null
+          : _readWorkflowDate(data['updatedAt']),
     );
   }
 }

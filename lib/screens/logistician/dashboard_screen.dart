@@ -93,7 +93,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Р“Р»Р°РІРЅР°СЏ',
+                        'Главная',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -104,7 +104,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       ),
                       SizedBox(height: 2),
                       Text(
-                        'РљР»СЋС‡РµРІС‹Рµ РїРѕРєР°Р·Р°С‚РµР»Рё Р»РѕРіРёСЃС‚РёРєРё',
+                        'Ключевые показатели логистики',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(fontSize: 14, color: Colors.white70),
@@ -159,25 +159,25 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget _buildQuickStatsGrid(CargoStats cargoStats) {
     final cards = [
       _buildCompactStatCard(
-        'Р’СЃРµРіРѕ',
+        'Всего',
         cargoStats.total.toString(),
         Icons.local_shipping,
         const Color(0xFF3B82F6),
       ),
       _buildCompactStatCard(
-        'РќРѕРІС‹Рµ',
+        'Новые',
         cargoStats.newCount.toString(),
         Icons.add_circle,
         const Color(0xFF22C55E),
       ),
       _buildCompactStatCard(
-        'Р’ РїСѓС‚Рё',
+        'В пути',
         cargoStats.inTransit.toString(),
         Icons.directions_car,
         const Color(0xFFF59E0B),
       ),
       _buildCompactStatCard(
-        'Р”РѕСЃС‚Р°РІР»РµРЅРѕ',
+        'Доставлено',
         cargoStats.completed.toString(),
         Icons.check_circle,
         const Color(0xFF10B981),
@@ -279,7 +279,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               const SizedBox(width: 12),
               const Expanded(
                 child: Text(
-                  'РљСѓСЂСЃС‹ РІР°Р»СЋС‚',
+                  'Курсы валют',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -290,7 +290,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
               ),
               IconButton(
-                tooltip: 'РћР±РЅРѕРІРёС‚СЊ',
+                tooltip: 'Обновить',
                 onPressed: () => ref.invalidate(exchangeRatesProvider),
                 icon: const Icon(Icons.refresh_rounded),
                 color: _mutedText,
@@ -329,7 +329,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ),
         const SizedBox(height: 12),
         Text(
-          'РћР±РЅРѕРІР»РµРЅРѕ: ${DateFormat('dd.MM.yyyy HH:mm').format(rates.updatedAt)} вЂў ${rates.sourceName}',
+          'Обновлено: ${DateFormat('dd.MM.yyyy HH:mm').format(rates.updatedAt)} • ${rates.sourceName}',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(color: _mutedText, fontSize: 12),
@@ -437,7 +437,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           const SizedBox(width: 10),
           const Expanded(
             child: Text(
-              'РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РєСѓСЂСЃС‹. РџСЂРѕРІРµСЂСЊС‚Рµ РёРЅС‚РµСЂРЅРµС‚.',
+              'Не удалось загрузить курсы. Проверьте интернет.',
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w700,
@@ -446,7 +446,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
           TextButton(
             onPressed: () => ref.invalidate(exchangeRatesProvider),
-            child: const Text('РџРѕРІС‚РѕСЂРёС‚СЊ'),
+            child: const Text('Повторить'),
           ),
         ],
       ),

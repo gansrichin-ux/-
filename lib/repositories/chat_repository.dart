@@ -49,10 +49,7 @@ class ChatRepository {
   }
 
   Stream<List<MessageModel>> watchDirectMessages(String conversationId) {
-    return _directMessages(conversationId)
-        .limit(200)
-        .snapshots()
-        .map((snap) {
+    return _directMessages(conversationId).limit(200).snapshots().map((snap) {
       final list = snap.docs.map(MessageModel.fromFirestore).toList();
       // Sort newest-first so ListView(reverse:true) shows latest at bottom.
       list.sort((a, b) {
@@ -63,7 +60,6 @@ class ChatRepository {
       return list;
     });
   }
-
 
   Future<void> sendDirectMessage({
     required UserModel sender,
@@ -95,11 +91,16 @@ class ChatRepository {
     String? mediaUrl;
     String? mediaType;
     String? mediaName;
+    int? mediaSize;
 
     if (media != null) {
       mediaName = _safeFileName(media.name);
-      mediaType = media.mimeType ?? _guessMimeType(mediaName);
+      final detectedMediaType = media.mimeType ?? _guessMimeType(mediaName);
+      mediaType = detectedMediaType == 'application/octet-stream'
+          ? _guessMimeType(mediaName)
+          : detectedMediaType;
       final bytes = await media.readAsBytes();
+      mediaSize = bytes.length;
       final storageRef = _storage.ref().child(
             'direct_chats/$conversationId/${DateTime.now().millisecondsSinceEpoch}_$mediaName',
           );
@@ -132,6 +133,7 @@ class ChatRepository {
       mediaUrl: mediaUrl,
       mediaType: mediaType,
       mediaName: mediaName,
+      mediaSize: mediaSize,
     );
 
     final conversationRef = _conversations.doc(conversationId);
@@ -214,6 +216,6 @@ class ChatRepository {
     if (lower.endsWith('.xlsx')) {
       return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     }
-    return 'image/jpeg';
+    return 'application/octet-stream';
   }
 }

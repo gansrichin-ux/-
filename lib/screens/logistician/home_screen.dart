@@ -28,18 +28,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   ];
 
   static const _labels = [
-    'Р“Р»Р°РІРЅР°СЏ',
-    'Р“СЂСѓР·С‹',
-    'Р’РѕРґРёС‚РµР»Рё',
-    'РљР»РёРµРЅС‚С‹',
-    'РњРѕСЏ\nСЃС‚Р°С‚РёСЃС‚РёРєР°',
+    'Главная',
+    'Грузы',
+    'Водители',
+    'Клиенты',
+    'Моя\nстатистика',
   ];
   static const _titles = [
-    'Р“Р»Р°РІРЅР°СЏ',
-    'Р“СЂСѓР·С‹',
-    'Р’РѕРґРёС‚РµР»Рё',
-    'РљР»РёРµРЅС‚С‹',
-    'РњРѕСЏ СЃС‚Р°С‚РёСЃС‚РёРєР°',
+    'Главная',
+    'Грузы',
+    'Водители',
+    'Клиенты',
+    'Моя статистика',
   ];
   static const _icons = [
     Icons.dashboard_rounded,
@@ -111,7 +111,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.settings_rounded),
-            tooltip: 'РќР°СЃС‚СЂРѕР№РєРё',
+            tooltip: 'Настройки',
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const SettingsScreen()),

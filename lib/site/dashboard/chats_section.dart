@@ -76,7 +76,8 @@ class _ChatsSectionState extends State<ChatsSection> {
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       border: Border(
-                        bottom: BorderSide(color: Theme.of(context).dividerColor),
+                        bottom:
+                            BorderSide(color: Theme.of(context).dividerColor),
                       ),
                     ),
                     child: Column(
@@ -112,8 +113,8 @@ class _ChatsSectionState extends State<ChatsSection> {
                   Expanded(
                     child: ListView.separated(
                       itemCount: peers.length,
-                      separatorBuilder: (context, index) =>
-                          Divider(height: 1, color: Theme.of(context).dividerColor),
+                      separatorBuilder: (context, index) => Divider(
+                          height: 1, color: Theme.of(context).dividerColor),
                       itemBuilder: (context, index) {
                         final peer = peers[index];
                         final isSelected = _selectedPeer?.uid == peer.uid;
@@ -153,7 +154,8 @@ class _ChatsSectionState extends State<ChatsSection> {
                         child: _StatePanel(
                           icon: Icons.chat_outlined,
                           title: 'Выберите пользователя',
-                          message: 'Откройте собеседника слева и начните диалог.',
+                          message:
+                              'Откройте собеседника слева и начните диалог.',
                         ),
                       )
                     : _buildActiveChat(context, _selectedPeer!),
@@ -438,8 +440,8 @@ class _DirectChatInputState extends State<_DirectChatInput> {
               child: TextField(
                 controller: _controller,
                 minLines: 1,
-                maxLines: 4,
-                keyboardType: TextInputType.multiline,
+                maxLines: 1,
+                keyboardType: TextInputType.text,
                 textInputAction: TextInputAction.send,
                 decoration: const InputDecoration(
                   hintText: 'Написать сообщение...',
@@ -447,6 +449,7 @@ class _DirectChatInputState extends State<_DirectChatInput> {
                   contentPadding:
                       EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
+                onEditingComplete: _sendText,
                 onSubmitted: (_) => _sendText(),
               ),
             ),

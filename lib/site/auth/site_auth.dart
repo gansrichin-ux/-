@@ -60,11 +60,12 @@ class _SiteAuthGateState extends State<SiteAuthGate> {
 
         final user = snapshot.data;
         if (user == null) {
-          return SiteLoginScreen(isDark: widget.isDark, onToggleTheme: widget.onToggleTheme);
+          return SiteLoginScreen(
+              isDark: widget.isDark, onToggleTheme: widget.onToggleTheme);
         }
 
         return SiteRouteRedirect(
-          location: user.isAdmin ? '/admin' : '/dashboard',
+          location: siteDashboardPathFor(user),
           isDark: widget.isDark,
           onToggleTheme: widget.onToggleTheme,
         );
@@ -74,11 +75,13 @@ class _SiteAuthGateState extends State<SiteAuthGate> {
 }
 
 class SiteDashboardGate extends StatefulWidget {
+  final String? workspaceSlug;
   final bool isDark;
   final VoidCallback onToggleTheme;
 
   const SiteDashboardGate({
     super.key,
+    required this.workspaceSlug,
     required this.isDark,
     required this.onToggleTheme,
   });
@@ -161,8 +164,23 @@ class _SiteDashboardGateState extends State<SiteDashboardGate> {
           );
         }
 
+        final expectedLocation = siteDashboardPathFor(
+          user,
+          widget.workspaceSlug,
+        );
+        final currentLocation = GoRouterState.of(context).uri.toString();
+        if (widget.workspaceSlug == null ||
+            currentLocation != expectedLocation) {
+          return SiteRouteRedirect(
+            location: expectedLocation,
+            isDark: widget.isDark,
+            onToggleTheme: widget.onToggleTheme,
+          );
+        }
+
         return SiteDashboard(
           user: user,
+          workspaceSlug: widget.workspaceSlug,
           isDark: widget.isDark,
           onToggleTheme: widget.onToggleTheme,
         );
@@ -212,8 +230,12 @@ class _SiteOtpVerifyScreenState extends State<SiteOtpVerifyScreen> {
   }
 
   Future<void> _sendCode() async {
-    setState(() { _sending = true; _error = null; });
-    final err = await AuthRepository.instance.sendOtpCode(widget.uid, widget.email);
+    setState(() {
+      _sending = true;
+      _error = null;
+    });
+    final err =
+        await AuthRepository.instance.sendOtpCode(widget.uid, widget.email);
     if (mounted) {
       setState(() {
         _sending = false;
@@ -226,13 +248,21 @@ class _SiteOtpVerifyScreenState extends State<SiteOtpVerifyScreen> {
 
   Future<void> _verify() async {
     if (_enteredCode.length < 6) return;
-    setState(() { _loading = true; _error = null; });
-    final err = await AuthRepository.instance.verifyOtpCode(widget.uid, _enteredCode);
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    final err =
+        await AuthRepository.instance.verifyOtpCode(widget.uid, _enteredCode);
     if (!mounted) return;
     if (err != null) {
-      setState(() { _loading = false; _error = err; });
+      setState(() {
+        _loading = false;
+        _error = err;
+      });
       for (final c in _controllers) c.clear();
-      if (_focusNodes.isNotEmpty) FocusScope.of(context).requestFocus(_focusNodes[0]);
+      if (_focusNodes.isNotEmpty)
+        FocusScope.of(context).requestFocus(_focusNodes[0]);
       return;
     }
     // emailCodeVerified is now true in Firestore — watchCurrentUser will emit updated model
@@ -255,26 +285,36 @@ class _SiteOtpVerifyScreenState extends State<SiteOtpVerifyScreen> {
                   const _LogoMark(),
                   const SizedBox(height: 32),
                   Container(
-                    width: 64, height: 64,
-                    decoration: BoxDecoration(color: colors.primaryContainer, borderRadius: BorderRadius.circular(18)),
-                    child: Icon(Icons.mark_email_read_rounded, size: 32, color: colors.primary),
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                        color: colors.primaryContainer,
+                        borderRadius: BorderRadius.circular(18)),
+                    child: Icon(Icons.mark_email_read_rounded,
+                        size: 32, color: colors.primary),
                   ),
                   const SizedBox(height: 20),
-                  Text('Подтвердите email', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900)),
+                  Text('Подтвердите email',
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.w900)),
                   const SizedBox(height: 10),
                   Text(
                     _sending
                         ? 'Отправляем код на ${widget.email}...'
                         : 'Мы отправили 6-значный код на\n${widget.email}\nВведите его ниже.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: colors.onSurfaceVariant, height: 1.5),
+                    style:
+                        TextStyle(color: colors.onSurfaceVariant, height: 1.5),
                   ),
                   const SizedBox(height: 28),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(6, (i) {
                       return Container(
-                        width: 48, height: 56,
+                        width: 48,
+                        height: 56,
                         margin: const EdgeInsets.symmetric(horizontal: 4),
                         child: TextFormField(
                           controller: _controllers[i],
@@ -282,19 +322,26 @@ class _SiteOtpVerifyScreenState extends State<SiteOtpVerifyScreen> {
                           textAlign: TextAlign.center,
                           keyboardType: TextInputType.number,
                           maxLength: 1,
-                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+                          style: const TextStyle(
+                              fontSize: 22, fontWeight: FontWeight.w900),
                           decoration: InputDecoration(
                             counterText: '',
                             contentPadding: EdgeInsets.zero,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12)),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: colors.primary, width: 2),
+                              borderSide:
+                                  BorderSide(color: colors.primary, width: 2),
                             ),
                           ),
                           onChanged: (val) {
-                            if (val.isNotEmpty && i < 5) FocusScope.of(context).requestFocus(_focusNodes[i + 1]);
-                            if (val.isEmpty && i > 0) FocusScope.of(context).requestFocus(_focusNodes[i - 1]);
+                            if (val.isNotEmpty && i < 5)
+                              FocusScope.of(context)
+                                  .requestFocus(_focusNodes[i + 1]);
+                            if (val.isEmpty && i > 0)
+                              FocusScope.of(context)
+                                  .requestFocus(_focusNodes[i - 1]);
                             if (_enteredCode.length == 6) _verify();
                           },
                         ),
@@ -304,12 +351,20 @@ class _SiteOtpVerifyScreenState extends State<SiteOtpVerifyScreen> {
                   if (_error != null) ...[
                     const SizedBox(height: 14),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(color: colors.errorContainer, borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                          color: colors.errorContainer,
+                          borderRadius: BorderRadius.circular(10)),
                       child: Row(children: [
-                        Icon(Icons.error_outline_rounded, size: 18, color: colors.onErrorContainer),
+                        Icon(Icons.error_outline_rounded,
+                            size: 18, color: colors.onErrorContainer),
                         const SizedBox(width: 8),
-                        Expanded(child: Text(_error!, style: TextStyle(color: colors.onErrorContainer, fontSize: 13))),
+                        Expanded(
+                            child: Text(_error!,
+                                style: TextStyle(
+                                    color: colors.onErrorContainer,
+                                    fontSize: 13))),
                       ]),
                     ),
                   ],
@@ -317,9 +372,14 @@ class _SiteOtpVerifyScreenState extends State<SiteOtpVerifyScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
-                      onPressed: (_loading || _enteredCode.length < 6) ? null : _verify,
+                      onPressed: (_loading || _enteredCode.length < 6)
+                          ? null
+                          : _verify,
                       icon: _loading
-                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2))
                           : const Icon(Icons.check_rounded),
                       label: Text(_loading ? 'Проверяем...' : 'Подтвердить'),
                     ),
@@ -328,14 +388,19 @@ class _SiteOtpVerifyScreenState extends State<SiteOtpVerifyScreen> {
                   TextButton.icon(
                     onPressed: _sending ? null : _sendCode,
                     icon: _sending
-                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2))
                         : const Icon(Icons.refresh_rounded, size: 16),
-                    label: Text(_sending ? 'Отправка...' : 'Отправить новый код'),
+                    label:
+                        Text(_sending ? 'Отправка...' : 'Отправить новый код'),
                   ),
                   const SizedBox(height: 4),
                   TextButton(
                     onPressed: () => AuthRepository.instance.signOut(),
-                    child: Text('Выйти из аккаунта', style: TextStyle(color: colors.onSurfaceVariant)),
+                    child: Text('Выйти из аккаунта',
+                        style: TextStyle(color: colors.onSurfaceVariant)),
                   ),
                 ],
               ),
@@ -541,13 +606,16 @@ class _SiteLoginScreenState extends State<SiteLoginScreen> {
               role: _selectedRole,
               username: _usernameController.text,
               name: _nameController.text,
-              car: _selectedRole.contains('driver') ? _carController.text : null,
+              car: (_selectedRole == 'carrier' ||
+                      _selectedRole.contains('carrier'))
+                  ? _carController.text
+                  : null,
             )
           : await AuthRepository.instance.signIn(
               _emailController.text,
               _passwordController.text,
             );
-      if (mounted) context.go(user.isAdmin ? '/admin' : '/dashboard');
+      if (mounted) context.go(siteDashboardPathFor(user));
     } catch (error) {
       if (!mounted) return;
       showSiteError(
@@ -630,6 +698,8 @@ class _SiteLoginScreenState extends State<SiteLoginScreen> {
                   value: _selectedRole,
                   onChanged: (value) => setState(() => _selectedRole = value),
                 ),
+                const SizedBox(height: 10),
+                _RegistrationRoleInfo(role: _selectedRole),
                 const SizedBox(height: 14),
                 TextFormField(
                   controller: _nameController,
@@ -710,7 +780,9 @@ class _SiteLoginScreenState extends State<SiteLoginScreen> {
                 },
                 onFieldSubmitted: (_) => _submit(),
               ),
-              if (_isRegistering && _selectedRole.contains('driver')) ...[
+              if (_isRegistering &&
+                  (_selectedRole == 'carrier' ||
+                      _selectedRole.contains('carrier'))) ...[
                 const SizedBox(height: 14),
                 TextFormField(
                   controller: _carController,
@@ -791,24 +863,32 @@ class _RoleSelector extends StatelessWidget {
           child: Text('Логист'),
         ),
         DropdownMenuItem(
-          value: 'driver',
-          child: Text('Водитель'),
-        ),
-        DropdownMenuItem(
-          value: 'forwarder',
-          child: Text('Экспедитор'),
+          value: 'carrier',
+          child: Text('Перевозчик'),
         ),
         DropdownMenuItem(
           value: 'cargo_owner',
           child: Text('Грузовладелец'),
         ),
         DropdownMenuItem(
-          value: 'driver_forwarder',
-          child: Text('Водитель-экспедитор'),
+          value: 'lawyer',
+          child: Text('Юрист'),
         ),
         DropdownMenuItem(
-          value: 'driver_cargo_owner',
-          child: Text('Водитель-Грузовладелец'),
+          value: 'forwarder',
+          child: Text('Экспедитор'),
+        ),
+        DropdownMenuItem(
+          value: 'carrier_forwarder',
+          child: Text('Перевозчик-Экспедитор'),
+        ),
+        DropdownMenuItem(
+          value: 'cargo_owner_carrier',
+          child: Text('Грузовладелец-Перевозчик'),
+        ),
+        DropdownMenuItem(
+          value: 'logistician_carrier',
+          child: Text('Логист-Перевозчик'),
         ),
       ],
       onChanged: (val) {
@@ -816,4 +896,111 @@ class _RoleSelector extends StatelessWidget {
       },
     );
   }
+}
+
+class _RegistrationRoleInfo extends StatelessWidget {
+  final String role;
+
+  const _RegistrationRoleInfo({required this.role});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final info = _info(role);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colors.primary.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: colors.primary.withOpacity(0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(info.icon, size: 18, color: colors.primary),
+              const SizedBox(width: 8),
+              Text(
+                info.title,
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            info.description,
+            style: TextStyle(
+              color: colors.onSurfaceVariant,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  _RegistrationRoleData _info(String role) {
+    switch (role) {
+      case 'carrier':
+        return const _RegistrationRoleData(
+          'Перевозчик',
+          'Ищет грузы, откликается, ведет свой транспорт и статусы рейсов.',
+          Icons.local_shipping_rounded,
+        );
+      case 'cargo_owner':
+        return const _RegistrationRoleData(
+          'Грузовладелец',
+          'Создает грузы, выбирает исполнителей, страхует перевозки.',
+          Icons.inventory_2_rounded,
+        );
+      case 'forwarder':
+        return const _RegistrationRoleData(
+          'Экспедитор',
+          'Подбирает грузы и транспорт, сопровождает рейсы и общение.',
+          Icons.route_rounded,
+        );
+      case 'lawyer':
+        return const _RegistrationRoleData(
+          'Юрист',
+          'Работает с юридическими обращениями, спорами и консультациями.',
+          Icons.balance_rounded,
+        );
+      case 'carrier_forwarder':
+        return const _RegistrationRoleData(
+          'Перевозчик-Экспедитор',
+          'Совмещает поиск грузов, транспорт и сопровождение рейсов.',
+          Icons.alt_route_rounded,
+        );
+      case 'cargo_owner_carrier':
+        return const _RegistrationRoleData(
+          'Грузовладелец-Перевозчик',
+          'Может создавать грузы и вести собственный транспорт.',
+          Icons.swap_horiz_rounded,
+        );
+      case 'logistician_carrier':
+        return const _RegistrationRoleData(
+          'Логист-Перевозчик',
+          'Может вести грузы, назначать исполнителей и работать с транспортом.',
+          Icons.manage_accounts_rounded,
+        );
+      case 'logistician':
+      default:
+        return const _RegistrationRoleData(
+          'Логист',
+          'Создает грузы, назначает перевозчиков, контролирует статусы и документы.',
+          Icons.manage_accounts_rounded,
+        );
+    }
+  }
+}
+
+class _RegistrationRoleData {
+  final String title;
+  final String description;
+  final IconData icon;
+
+  const _RegistrationRoleData(this.title, this.description, this.icon);
 }

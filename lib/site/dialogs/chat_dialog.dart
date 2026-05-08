@@ -135,13 +135,14 @@ class _SiteChatDialogState extends State<SiteChatDialog> {
                       child: TextField(
                         controller: _controller,
                         minLines: 1,
-                        maxLines: 4,
-                        keyboardType: TextInputType.multiline,
+                        maxLines: 1,
+                        keyboardType: TextInputType.text,
                         textInputAction: TextInputAction.send,
                         decoration: const InputDecoration(
                           hintText: 'Написать сообщение...',
                           prefixIcon: Icon(Icons.message_outlined),
                         ),
+                        onEditingComplete: _send,
                         onSubmitted: (_) => _send(),
                       ),
                     ),
@@ -260,6 +261,7 @@ class _MessageMedia extends StatelessWidget {
                 width: double.infinity,
                 height: 220,
                 errorBuilder: (context, error, stackTrace) => _MediaFallback(
+                  message: message,
                   name: name,
                   url: mediaUrl,
                   color: colors.primary,
@@ -268,12 +270,28 @@ class _MessageMedia extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
+          Text(
+            _mediaMetaText(message),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: colors.onSurfaceVariant,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
           _MediaActions(name: name, url: mediaUrl),
         ],
       );
     }
 
-    return _MediaFallback(name: name, url: mediaUrl, color: colors.primary);
+    return _MediaFallback(
+      message: message,
+      name: name,
+      url: mediaUrl,
+      color: colors.primary,
+    );
   }
 }
 
@@ -314,6 +332,7 @@ void _showMediaPreview(BuildContext context, MessageModel message) {
                 ),
               )
             : _MediaFallback(
+                message: message,
                 name: name,
                 url: url,
                 color: Theme.of(context).colorScheme.primary,
@@ -362,12 +381,40 @@ class _MediaActions extends StatelessWidget {
   }
 }
 
+String _mediaMetaText(MessageModel? message) {
+  if (message == null) return 'Файл';
+  final parts = <String>[];
+  if (message.mediaSize != null && message.mediaSize! > 0) {
+    parts.add(_formatMediaSize(message.mediaSize!));
+  }
+  if (message.mediaType?.isNotEmpty == true) {
+    parts.add(message.mediaType!);
+  }
+  if (message.timestamp != null) {
+    parts.add(DateFormat('dd.MM HH:mm').format(message.timestamp!));
+  }
+  if (message.senderName.isNotEmpty) {
+    parts.add(message.senderName);
+  }
+  return parts.isEmpty ? 'Файл' : parts.join(' · ');
+}
+
+String _formatMediaSize(int bytes) {
+  if (bytes < 1024) return '$bytes B';
+  final kb = bytes / 1024;
+  if (kb < 1024) return '${kb.toStringAsFixed(kb < 10 ? 1 : 0)} KB';
+  final mb = kb / 1024;
+  return '${mb.toStringAsFixed(mb < 10 ? 1 : 0)} MB';
+}
+
 class _MediaFallback extends StatelessWidget {
+  final MessageModel? message;
   final String name;
   final String url;
   final Color color;
 
   const _MediaFallback({
+    this.message,
     required this.name,
     required this.url,
     required this.color,
@@ -398,9 +445,10 @@ class _MediaFallback extends StatelessWidget {
                   style: const TextStyle(fontWeight: FontWeight.w900),
                 ),
                 const SizedBox(height: 4),
-                SelectableText(
-                  url,
+                Text(
+                  _mediaMetaText(message),
                   maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 11,

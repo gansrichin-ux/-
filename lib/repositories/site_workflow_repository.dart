@@ -3,6 +3,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
 import '../core/config/cargo_statuses.dart';
+import '../core/config/role_permissions.dart';
 import '../models/cargo_model.dart';
 import '../models/document_model.dart';
 import '../models/site_workflow_models.dart';
@@ -30,6 +31,12 @@ class SiteWorkflowRepository {
   CollectionReference<Map<String, dynamic>> get _reports =>
       _firestore.collection('userReports');
 
+  CollectionReference<Map<String, dynamic>> get _serviceRequests =>
+      _firestore.collection('serviceRequests');
+
+  CollectionReference<Map<String, dynamic>> get _companyProfiles =>
+      _firestore.collection('companyProfiles');
+
   Stream<List<CargoApplicationModel>> watchAllApplications() {
     return _applications.limit(300).snapshots().map((snap) {
       final items = snap.docs.map(CargoApplicationModel.fromFirestore).toList();
@@ -41,7 +48,22 @@ class SiteWorkflowRepository {
   Stream<List<CargoApplicationModel>> watchApplicationsForUser(UserModel user) {
     if (user.isAdmin) return watchAllApplications();
 
-    final field = user.isDriver ? 'applicantId' : 'ownerId';
+    // If user has both roles, we need to see both sent applications and received ones.
+    // Since Firestore 'where' queries are AND by default, we use client-side filtering
+    // for hybrid roles to keep it simple and avoid multiple streams.
+    if (user.canCreateCargo && user.canApplyToCargo) {
+      return _applications.limit(200).snapshots().map((snap) {
+        final items = snap.docs
+            .map(CargoApplicationModel.fromFirestore)
+            .where(
+                (app) => app.ownerId == user.uid || app.applicantId == user.uid)
+            .toList();
+        items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return items;
+      });
+    }
+
+    final field = user.canApplyToCargo ? 'applicantId' : 'ownerId';
     return _applications
         .where(field, isEqualTo: user.uid)
         .limit(160)
@@ -89,6 +111,17 @@ class SiteWorkflowRepository {
     });
   }
 
+  Stream<List<ActivityLogModel>> watchAuditActivity(UserModel user) {
+    if (!user.isAdmin && !user.isLogistician) {
+      return watchActivity(user.uid);
+    }
+    return _activity.limit(160).snapshots().map((snap) {
+      final items = snap.docs.map(ActivityLogModel.fromFirestore).toList();
+      items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return items;
+    });
+  }
+
   Stream<List<DocumentModel>> watchCargoDocuments(String cargoId) {
     return _documents
         .where('cargoId', isEqualTo: cargoId)
@@ -113,6 +146,94 @@ class SiteWorkflowRepository {
     });
   }
 
+  Stream<Map<String, dynamic>?> watchCompanyProfile(String uid) {
+    return _companyProfiles.doc(uid).snapshots().map((doc) {
+      if (!doc.exists) return null;
+      return doc.data();
+    });
+  }
+
+  Future<void> saveCompanyProfile({
+    required UserModel user,
+    required String organizationName,
+    required String businessType,
+    required String bin,
+    required String phone,
+    required String address,
+    required String description,
+  }) async {
+    await _companyProfiles.doc(user.uid).set({
+      'userId': user.uid,
+      'userName': user.displayName,
+      'organizationName': organizationName.trim(),
+      'businessType': businessType.trim(),
+      'bin': bin.trim(),
+      'phone': phone.trim(),
+      'address': address.trim(),
+      'description': description.trim(),
+      'updatedAt': FieldValue.serverTimestamp(),
+      'createdAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Stream<List<ServiceRequestModel>> watchServiceRequests(
+    UserModel user, {
+    String? type,
+  }) {
+    final canHandleLegal =
+        type == 'legal' && RolePermissions.canHandleLegalRequests(user);
+    final query = canHandleLegal
+        ? _serviceRequests.where('type', isEqualTo: 'legal')
+        : _serviceRequests.where('userId', isEqualTo: user.uid);
+
+    return query.limit(80).snapshots().map((snap) {
+      var items = snap.docs.map(ServiceRequestModel.fromFirestore).toList();
+      if (type != null && !canHandleLegal) {
+        items = items.where((item) => item.type == type).toList();
+      }
+      items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return items;
+    });
+  }
+
+  Future<void> createServiceRequest({
+    required UserModel user,
+    required String type,
+    required String title,
+    required String message,
+    Map<String, Object?> metadata = const {},
+  }) async {
+    final ref = _serviceRequests.doc();
+    final batch = _firestore.batch();
+    batch.set(ref, {
+      'userId': user.uid,
+      'userName': user.displayName,
+      'type': type,
+      'title': title.trim(),
+      'message': message.trim(),
+      'metadata': metadata,
+      'status': 'open',
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    _addActivityToBatch(
+      batch,
+      title: _serviceTypeTitle(type),
+      body: title.trim().isEmpty ? message.trim() : title.trim(),
+      actor: user,
+      cargo: null,
+      type: 'service_request',
+      visibleTo: [user.uid],
+      targetType: 'support_ticket',
+      targetId: ref.id,
+      targetTitle: title.trim(),
+      metadata: {'serviceType': type},
+    );
+
+    await batch.commit();
+  }
+
   Future<void> applyToCargo({
     required CargoModel cargo,
     required UserModel applicant,
@@ -121,7 +242,7 @@ class SiteWorkflowRepository {
     if (cargo.ownerId == applicant.uid) {
       throw Exception('Нельзя откликнуться на свой груз');
     }
-    if (cargo.driverId != null && cargo.driverId!.isNotEmpty) {
+    if (cargo.carrierId != null && cargo.carrierId!.isNotEmpty) {
       throw Exception('На этот груз уже назначен исполнитель');
     }
 
@@ -165,6 +286,9 @@ class SiteWorkflowRepository {
       cargo: cargo,
       type: 'application',
       visibleTo: _visibleTo(cargo, applicant.uid),
+      targetType: 'application',
+      targetId: applicationId,
+      targetTitle: cargo.title,
     );
 
     await batch.commit();
@@ -191,9 +315,12 @@ class SiteWorkflowRepository {
 
     if (accepted) {
       batch.update(_firestore.collection('cargos').doc(cargo.id), {
+        // Write both legacy and new fields for backward compatibility
         'driverId': application.applicantId,
         'driverName': application.applicantName,
-        // executorSelected = driver chosen, waiting for trip confirmation
+        'executorId': application.applicantId,
+        'executorName': application.applicantName,
+        // executorSelected = carrier chosen, waiting for trip confirmation
         'status': CargoStatus.executorSelected,
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -220,6 +347,9 @@ class SiteWorkflowRepository {
       cargo: cargo,
       type: 'application',
       visibleTo: _visibleTo(cargo, application.applicantId),
+      targetType: 'application',
+      targetId: application.id,
+      targetTitle: cargo.title,
     );
 
     await batch.commit();
@@ -264,7 +394,9 @@ class SiteWorkflowRepository {
       _addNotificationToBatch(
         batch,
         userId: uid,
-        title: isDelivered ? 'Груз доставлен в пункт назначения' : 'Статус груза изменен',
+        title: isDelivered
+            ? 'Груз доставлен в пункт назначения'
+            : 'Статус груза изменен',
         body: isDelivered
             ? '"${cargo.title}" успешно доставлен в ${cargo.to}'
             : '"${cargo.title}" теперь: ${CargoStatus.getDisplayStatus(canonicalStatus)}',
@@ -276,7 +408,8 @@ class SiteWorkflowRepository {
     _addActivityToBatch(
       batch,
       title: 'Статус обновлен',
-      body: '"${cargo.title}" теперь: ${CargoStatus.getDisplayStatus(canonicalStatus)}',
+      body:
+          '"${cargo.title}" теперь: ${CargoStatus.getDisplayStatus(canonicalStatus)}',
       actor: actor,
       cargo: cargo,
       type: 'status',
@@ -352,6 +485,10 @@ class SiteWorkflowRepository {
       cargo: cargo,
       type: 'document',
       visibleTo: _visibleTo(cargo, uploader.uid),
+      targetType: 'document',
+      targetId: docRef.id,
+      targetTitle: fileName,
+      metadata: {'cargoId': cargo.id},
     );
     await batch.commit();
 
@@ -394,6 +531,9 @@ class SiteWorkflowRepository {
       cargo: null,
       type: 'report',
       visibleTo: [reporter.uid, target.uid],
+      targetType: 'user',
+      targetId: target.uid,
+      targetTitle: target.displayName,
     );
 
     await batch.commit();
@@ -444,6 +584,10 @@ class SiteWorkflowRepository {
     required CargoModel? cargo,
     required String type,
     required List<String> visibleTo,
+    String? targetType,
+    String? targetId,
+    String? targetTitle,
+    Map<String, Object?> metadata = const {},
   }) {
     final ref = _activity.doc();
     batch.set(ref, {
@@ -451,7 +595,12 @@ class SiteWorkflowRepository {
       'body': body,
       'actorId': actor.uid,
       'actorName': actor.displayName,
+      'actorRole': actor.role,
       'cargoId': cargo?.id,
+      'targetType': targetType ?? (cargo == null ? type : 'cargo'),
+      'targetId': targetId ?? cargo?.id,
+      'targetTitle': targetTitle ?? cargo?.title,
+      'metadata': metadata,
       'type': type,
       'visibleTo': visibleTo.toSet().toList(),
       'createdAt': FieldValue.serverTimestamp(),
@@ -462,7 +611,8 @@ class SiteWorkflowRepository {
     return <String>{
       fallbackUserId,
       if (cargo.ownerId?.isNotEmpty == true) cargo.ownerId!,
-      if (cargo.driverId?.isNotEmpty == true) cargo.driverId!,
+      // carrierId covers both legacy driverId and new executorId
+      if (cargo.carrierId?.isNotEmpty == true) cargo.carrierId!,
     }.toList();
   }
 
@@ -489,5 +639,18 @@ class SiteWorkflowRepository {
       return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     }
     return 'application/octet-stream';
+  }
+
+  String _serviceTypeTitle(String type) {
+    switch (type) {
+      case 'insurance':
+        return 'Заявка на страхование';
+      case 'legal':
+        return 'Запрос юристу';
+      case 'support':
+        return 'Обращение в техподдержку';
+      default:
+        return 'Сервисная заявка';
+    }
   }
 }

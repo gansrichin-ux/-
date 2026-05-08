@@ -3,12 +3,12 @@ import '../services/client_service.dart';
 import '../../models/client_model.dart';
 import 'auth_providers.dart';
 
-/// РџСЂРѕРІР°Р№РґРµСЂ РґР»СЏ СЃРµСЂРІРёСЃР° РєР»РёРµРЅС‚РѕРІ
+/// Провайдер для сервиса клиентов
 final clientServiceProvider = Provider<ClientService>((ref) {
   return ClientService.instance;
 });
 
-/// РџСЂРѕРІР°Р№РґРµСЂ РІСЃРµС… РєР»РёРµРЅС‚РѕРІ
+/// Провайдер всех клиентов
 final allClientsProvider = FutureProvider<List<ClientModel>>((ref) async {
   final clientService = ref.watch(clientServiceProvider);
   final user = ref.watch(currentUserProvider).value;
@@ -16,7 +16,7 @@ final allClientsProvider = FutureProvider<List<ClientModel>>((ref) async {
   return await clientService.getAllClients(ownerId: user.uid);
 });
 
-/// РџСЂРѕРІР°Р№РґРµСЂ Р°РєС‚РёРІРЅС‹С… РєР»РёРµРЅС‚РѕРІ
+/// Провайдер активных клиентов
 final activeClientsProvider = FutureProvider<List<ClientModel>>((ref) async {
   final clientService = ref.watch(clientServiceProvider);
   final user = ref.watch(currentUserProvider).value;
@@ -24,7 +24,7 @@ final activeClientsProvider = FutureProvider<List<ClientModel>>((ref) async {
   return await clientService.getActiveClients(ownerId: user.uid);
 });
 
-/// РџСЂРѕРІР°Р№РґРµСЂ РєР»РёРµРЅС‚Р° РїРѕ ID
+/// Провайдер клиента по ID
 final clientProvider = FutureProvider.family<ClientModel?, String>((
   ref,
   clientId,
@@ -33,7 +33,7 @@ final clientProvider = FutureProvider.family<ClientModel?, String>((
   return await clientService.getClient(clientId);
 });
 
-/// РџСЂРѕРІР°Р№РґРµСЂ РґР»СЏ РїРѕРёСЃРєР° РєР»РёРµРЅС‚РѕРІ
+/// Провайдер для поиска клиентов
 class ClientSearchFilter {
   final String query;
   final bool? isActive;
@@ -52,7 +52,7 @@ final clientSearchFilterProvider = StateProvider<ClientSearchFilter>((ref) {
   return const ClientSearchFilter();
 });
 
-/// РџСЂРѕРІР°Р№РґРµСЂ РѕС‚С„РёР»СЊС‚СЂРѕРІР°РЅРЅС‹С… РєР»РёРµРЅС‚РѕРІ
+/// Провайдер отфильтрованных клиентов
 final filteredClientsProvider = Provider<List<ClientModel>>((ref) {
   final allClientsAsync = ref.watch(allClientsProvider);
   final filter = ref.watch(clientSearchFilterProvider);
@@ -60,12 +60,12 @@ final filteredClientsProvider = Provider<List<ClientModel>>((ref) {
   return allClientsAsync.when(
     data: (allClients) {
       return allClients.where((client) {
-        // Р¤РёР»СЊС‚СЂ РїРѕ Р°РєС‚РёРІРЅРѕСЃС‚Рё
+        // Фильтр по активности
         if (filter.isActive != null && client.isActive != filter.isActive) {
           return false;
         }
 
-        // Р¤РёР»СЊС‚СЂ РїРѕ РїРѕРёСЃРєРѕРІРѕРјСѓ Р·Р°РїСЂРѕСЃСѓ
+        // Фильтр по поисковому запросу
         if (filter.query.isNotEmpty) {
           final query = filter.query.toLowerCase();
           return client.name.toLowerCase().contains(query) ||
@@ -83,7 +83,7 @@ final filteredClientsProvider = Provider<List<ClientModel>>((ref) {
   );
 });
 
-/// РџСЂРѕРІР°Р№РґРµСЂ СЃС‚Р°С‚РёСЃС‚РёРєРё РєР»РёРµРЅС‚РѕРІ
+/// Провайдер статистики клиентов
 final clientStatsProvider = Provider<Map<String, dynamic>>((ref) {
   final allClientsAsync = ref.watch(allClientsProvider);
 
@@ -117,7 +117,7 @@ final clientStatsProvider = Provider<Map<String, dynamic>>((ref) {
   );
 });
 
-/// РџСЂРѕРІР°Р№РґРµСЂ С‚РѕРї РєР»РёРµРЅС‚РѕРІ РїРѕ РґРѕС…РѕРґСѓ
+/// Провайдер топ клиентов по доходу
 final topClientsByRevenueProvider = Provider<List<ClientModel>>((ref) {
   final allClientsAsync = ref.watch(allClientsProvider);
 
@@ -132,7 +132,7 @@ final topClientsByRevenueProvider = Provider<List<ClientModel>>((ref) {
   );
 });
 
-/// РџСЂРѕРІР°Р№РґРµСЂ С‚РѕРї РєР»РёРµРЅС‚РѕРІ РїРѕ РєРѕР»РёС‡РµСЃС‚РІСѓ Р·Р°РєР°Р·РѕРІ
+/// Провайдер топ клиентов по количеству заказов
 final topClientsByOrdersProvider = Provider<List<ClientModel>>((ref) {
   final allClientsAsync = ref.watch(allClientsProvider);
 
@@ -147,7 +147,7 @@ final topClientsByOrdersProvider = Provider<List<ClientModel>>((ref) {
   );
 });
 
-/// РџСЂРѕРІР°Р№РґРµСЂ РЅРµРґР°РІРЅРѕ РґРѕР±Р°РІР»РµРЅРЅС‹С… РєР»РёРµРЅС‚РѕРІ
+/// Провайдер недавно добавленных клиентов
 final recentClientsProvider = Provider<List<ClientModel>>((ref) {
   final allClientsAsync = ref.watch(allClientsProvider);
 
@@ -164,7 +164,7 @@ final recentClientsProvider = Provider<List<ClientModel>>((ref) {
   );
 });
 
-/// РџСЂРѕРІР°Р№РґРµСЂ РєР»РёРµРЅС‚РѕРІ Р±РµР· РЅРµРґР°РІРЅРёС… Р·Р°РєР°Р·РѕРІ
+/// Провайдер клиентов без недавних заказов
 final inactiveClientsProvider = Provider<List<ClientModel>>((ref) {
   final allClientsAsync = ref.watch(allClientsProvider);
 

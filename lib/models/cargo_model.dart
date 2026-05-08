@@ -9,6 +9,8 @@ class CargoModel {
   final String status;
   final String? driverId;
   final String? driverName;
+  final String? executorId;
+  final String? executorName;
   final String? ownerId;
   final List<String> photos;
   final DateTime? createdAt;
@@ -34,13 +36,17 @@ class CargoModel {
   final bool isReady;
   final String? cargoType;
 
+  String? get carrierId => executorId ?? driverId;
+  String? get carrierName => executorName ?? driverName;
+
   bool get isDraft => status == CargoStatus.draft;
   bool get isPublished => status == CargoStatus.published;
   bool get hasApplications => status == CargoStatus.hasApplications;
-  /// True when a specific executor (driver/forwarder) has been chosen.
-  /// Covers all stages from executorSelected onward, OR when driverId is set.
+
+  /// True when a specific executor (carrier/forwarder) has been chosen.
+  /// Covers all stages from executorSelected onward, OR when driverId/executorId is set.
   bool get hasExecutor =>
-      (driverId != null && driverId!.isNotEmpty) ||
+      (carrierId != null && carrierId!.isNotEmpty) ||
       const [
         CargoStatus.executorSelected,
         CargoStatus.waitingConfirmation,
@@ -71,11 +77,15 @@ class CargoModel {
         CargoStatus.waitingPayment,
         CargoStatus.dispute,
       ].contains(status);
-  bool get isFinished => status == CargoStatus.delivered || status == CargoStatus.closed;
+  bool get isFinished =>
+      status == CargoStatus.delivered || status == CargoStatus.closed;
   bool get isCancelled => status == CargoStatus.cancelled;
   bool get isInDispute => status == CargoStatus.dispute;
   bool get isClosed => status == CargoStatus.closed;
-  double get pricePerKm => (price != null && distanceKm != null && distanceKm! > 0) ? price! / distanceKm! : 0.0;
+  double get pricePerKm =>
+      (price != null && distanceKm != null && distanceKm! > 0)
+          ? price! / distanceKm!
+          : 0.0;
 
   const CargoModel({
     required this.id,
@@ -85,6 +95,8 @@ class CargoModel {
     required this.status,
     this.driverId,
     this.driverName,
+    this.executorId,
+    this.executorName,
     this.ownerId,
     this.photos = const [],
     this.createdAt,
@@ -109,12 +121,17 @@ class CargoModel {
     this.shipmentType = 'full',
     this.isReady = true,
     this.cargoType,
-  });
+  })  : assert(title != '', 'Cargo title cannot be empty'),
+        assert(from != '', 'Cargo origin cannot be empty'),
+        assert(to != '', 'Cargo destination cannot be empty'),
+        assert(status != '', 'Cargo status cannot be empty'),
+        assert(weightKg == null || weightKg >= 0,
+            'Cargo weight cannot be negative');
 
   factory CargoModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     final rawStatus = data['status'] as String? ?? 'Новый';
-    
+
     return CargoModel(
       id: doc.id,
       title: data['title'] as String? ?? '',
@@ -123,6 +140,8 @@ class CargoModel {
       status: CargoStatus.fromLegacy(rawStatus),
       driverId: data['driverId'] as String?,
       driverName: data['driverName'] as String?,
+      executorId: data['executorId'] as String?,
+      executorName: data['executorName'] as String?,
       ownerId: data['ownerId'] as String?,
       photos: List<String>.from(data['photos'] as List<dynamic>? ?? []),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
@@ -158,9 +177,13 @@ class CargoModel {
       'status': CargoStatus.toLegacy(status),
       if (driverId != null) 'driverId': driverId,
       if (driverName != null) 'driverName': driverName,
+      if (executorId != null) 'executorId': executorId,
+      if (executorName != null) 'executorName': executorName,
       if (ownerId != null) 'ownerId': ownerId,
       'photos': photos,
-      'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),
+      'createdAt': createdAt != null
+          ? Timestamp.fromDate(createdAt!)
+          : FieldValue.serverTimestamp(),
       if (description != null) 'description': description,
       if (weightKg != null) 'weightKg': weightKg,
       if (volumeM3 != null) 'volumeM3': volumeM3,
@@ -192,6 +215,8 @@ class CargoModel {
     String? status,
     String? driverId,
     String? driverName,
+    String? executorId,
+    String? executorName,
     String? ownerId,
     List<String>? photos,
     String? description,
@@ -224,6 +249,8 @@ class CargoModel {
       status: status ?? this.status,
       driverId: driverId ?? this.driverId,
       driverName: driverName ?? this.driverName,
+      executorId: executorId ?? this.executorId,
+      executorName: executorName ?? this.executorName,
       ownerId: ownerId ?? this.ownerId,
       photos: photos ?? this.photos,
       createdAt: createdAt,
@@ -260,6 +287,8 @@ class CargoModel {
       status: map['status'] as String,
       driverId: map['driverId'] as String?,
       driverName: map['driverName'] as String?,
+      executorId: map['executorId'] as String?,
+      executorName: map['executorName'] as String?,
       ownerId: map['ownerId'] as String?,
       photos: List<String>.from(map['photos'] as List? ?? []),
       createdAt: map['createdAt'] != null
@@ -300,6 +329,8 @@ class CargoModel {
       'status': status,
       if (driverId != null) 'driverId': driverId,
       if (driverName != null) 'driverName': driverName,
+      if (executorId != null) 'executorId': executorId,
+      if (executorName != null) 'executorName': executorName,
       if (ownerId != null) 'ownerId': ownerId,
       'photos': photos,
       if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),

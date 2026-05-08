@@ -50,6 +50,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
   bool _isLoading = false;
   bool _isRating = false;
   XFile? _selectedAvatar;
+  String? _localAvatarUrl;
   int? _selectedScore;
 
   @override
@@ -83,7 +84,7 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
   Future<void> _saveProfile(UserModel currentUser) async {
     setState(() => _isLoading = true);
     try {
-      await UserRepository.instance.updateProfile(
+      final uploadedAvatarUrl = await UserRepository.instance.updateProfile(
         user: currentUser,
         name: _nameController.text,
         aboutMe: _aboutController.text,
@@ -95,6 +96,9 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
       setState(() {
         _isEditing = false;
         _selectedAvatar = null;
+        if (uploadedAvatarUrl != null) {
+          _localAvatarUrl = uploadedAvatarUrl;
+        }
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Профиль обновлен')),
@@ -233,6 +237,9 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
             builder: (context, authSnapshot) {
               final currentUser = authSnapshot.data;
               final isOwner = currentUser?.uid == profileUser.uid;
+              final visibleProfileUser = isOwner && _localAvatarUrl != null
+                  ? profileUser.copyWith(avatarUrl: _localAvatarUrl)
+                  : profileUser;
 
               return ListView(
                 padding: const EdgeInsets.fromLTRB(22, 18, 22, 48),
@@ -244,23 +251,24 @@ class _UserProfilePageState extends ConsumerState<UserProfilePage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _ProfileHero(
-                            user: profileUser,
+                            user: visibleProfileUser,
                             isOwner: isOwner,
                             section: widget.section,
-                            onEdit: () => _startEditing(profileUser),
+                            onEdit: () => _startEditing(visibleProfileUser),
                             onDashboard: () => context.go('/dashboard'),
                             onReport: currentUser == null || isOwner
                                 ? null
-                                : () => _reportUser(profileUser, currentUser),
+                                : () =>
+                                    _reportUser(visibleProfileUser, currentUser),
                           ),
                           const SizedBox(height: 14),
                           _ProfileTabs(
-                            profile: profileUser,
+                            profile: visibleProfileUser,
                             selected: widget.section,
                           ),
                           const SizedBox(height: 16),
                           _buildSection(
-                            profileUser: profileUser,
+                            profileUser: visibleProfileUser,
                             currentUser: currentUser,
                             users: users,
                             isOwner: isOwner,
@@ -612,6 +620,8 @@ class _ProfileAccountSection extends StatelessWidget {
   Widget _buildInfo(BuildContext context) {
     return Column(
       children: [
+        _ProfileStatusCard(user: profileUser, isOwner: isOwner, onEdit: onEdit),
+        const SizedBox(height: 14),
         _ProfileDataRow(label: 'ID', value: profileUser.uid.substring(0, 8)),
         _ProfileDataRow(label: 'Логин', value: profileUser.displayUsername),
         _ProfileDataRow(label: 'E-mail', value: profileUser.email),
@@ -1016,6 +1026,112 @@ class _ProfilePanel extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           child,
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileStatusCard extends StatelessWidget {
+  final UserModel user;
+  final bool isOwner;
+  final VoidCallback onEdit;
+
+  const _ProfileStatusCard({
+    required this.user,
+    required this.isOwner,
+    required this.onEdit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final percent = user.effectiveProfileCompletenessPercent;
+    final status = user.effectiveProfileStatus;
+    final label = switch (status) {
+      'verified' => 'Профиль подтверждён',
+      'pending_review' => 'Профиль проверяется',
+      'rejected' => 'Требуются исправления',
+      _ => 'Профиль не заполнен',
+    };
+    final icon = switch (status) {
+      'verified' => Icons.verified_rounded,
+      'pending_review' => Icons.pending_actions_rounded,
+      'rejected' => Icons.error_outline_rounded,
+      _ => Icons.assignment_late_outlined,
+    };
+    final accent = switch (status) {
+      'verified' => const Color(0xFF16A34A),
+      'pending_review' => const Color(0xFFEAB308),
+      'rejected' => colors.error,
+      _ => colors.primary,
+    };
+    final missing = user.profileMissingItems.take(4).join(', ');
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: accent.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: accent.withOpacity(0.22)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: accent),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ),
+              Text(
+                '$percent%',
+                style: TextStyle(color: accent, fontWeight: FontWeight.w900),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          LinearProgressIndicator(
+            minHeight: 7,
+            value: percent / 100,
+            color: accent,
+            backgroundColor: colors.surfaceContainerHighest,
+          ),
+          if (user.profileReviewComment?.trim().isNotEmpty == true) ...[
+            const SizedBox(height: 8),
+            Text(
+              user.profileReviewComment!,
+              style: TextStyle(
+                color: colors.onSurfaceVariant,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ] else if (missing.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Заполнить: $missing',
+              style: TextStyle(
+                color: colors.onSurfaceVariant,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+          if (isOwner && percent < 100) ...[
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton.icon(
+                onPressed: onEdit,
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                label: const Text('Заполнить профиль'),
+              ),
+            ),
+          ],
         ],
       ),
     );

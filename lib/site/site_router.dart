@@ -28,6 +28,15 @@ GoRouter createSiteRouter({
       GoRoute(
         path: '/dashboard',
         builder: (context, state) => SiteDashboardGate(
+          workspaceSlug: null,
+          isDark: isDark,
+          onToggleTheme: onToggleTheme,
+        ),
+      ),
+      GoRoute(
+        path: '/dashboard/:workspace',
+        builder: (context, state) => SiteDashboardGate(
+          workspaceSlug: state.pathParameters['workspace'],
           isDark: isDark,
           onToggleTheme: onToggleTheme,
         ),

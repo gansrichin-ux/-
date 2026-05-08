@@ -27,8 +27,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-            widget.cargo != null ? 'РњР°СЂС€СЂСѓС‚ РіСЂСѓР·Р°' : 'РљР°СЂС‚Р°'),
+        title: Text(widget.cargo != null ? 'Маршрут груза' : 'Карта'),
         actions: [
           IconButton(
             icon: Icon(
@@ -77,7 +76,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       data: (position) {
         markers.add(_mapService.createMarker(
           point: LatLng(position.latitude, position.longitude),
-          label: 'Р’Р°С€Рµ РјРµСЃС‚РѕРїРѕР»РѕР¶РµРЅРёРµ',
+          label: 'Ваше местоположение',
           color: const Color(0xFF3B82F6),
         ));
       },
@@ -96,13 +95,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
       markers.add(_mapService.createMarker(
         point: startPoint,
-        label: 'РћС‚РєСѓРґР°: ${cargo.from}',
+        label: 'Откуда: ${cargo.from}',
         color: const Color(0xFF22C55E),
       ));
 
       markers.add(_mapService.createMarker(
         point: endPoint,
-        label: 'РљСѓРґР°: ${cargo.to}',
+        label: 'Куда: ${cargo.to}',
         color: const Color(0xFFF59E0B),
       ));
 

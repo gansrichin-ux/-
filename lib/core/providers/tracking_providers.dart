@@ -2,47 +2,47 @@
 import '../services/tracking_service.dart';
 import '../../models/cargo_tracking_model.dart';
 
-/// РџСЂРѕРІР°Р№РґРµСЂ РґР»СЏ СЃРµСЂРІРёСЃР° РѕС‚СЃР»РµР¶РёРІР°РЅРёСЏ
+/// Провайдер для сервиса отслеживания
 final trackingServiceProvider = Provider<TrackingService>((ref) {
   return TrackingService();
 });
 
-/// РџСЂРѕРІР°Р№РґРµСЂ С‚РµРєСѓС‰РµРіРѕ РјРµСЃС‚РѕРїРѕР»РѕР¶РµРЅРёСЏ РіСЂСѓР·Р°
+/// Провайдер текущего местоположения груза
 final cargoLocationProvider =
     StreamProvider.family<CargoTrackingModel?, String>((ref, cargoId) {
   final trackingService = ref.watch(trackingServiceProvider);
   return trackingService.getCurrentLocation(cargoId);
 });
 
-/// РџСЂРѕРІР°Р№РґРµСЂ РёСЃС‚РѕСЂРёРё РѕС‚СЃР»РµР¶РёРІР°РЅРёСЏ РіСЂСѓР·Р°
+/// Провайдер истории отслеживания груза
 final cargoTrackingHistoryProvider =
     StreamProvider.family<List<TrackingHistoryPoint>, String>((ref, cargoId) {
   final trackingService = ref.watch(trackingServiceProvider);
   return trackingService.getTrackingHistory(cargoId);
 });
 
-/// РџСЂРѕРІР°Р№РґРµСЂ РІСЃРµС… Р°РєС‚РёРІРЅС‹С… РѕС‚СЃР»РµР¶РёРІР°РЅРёР№
+/// Провайдер всех активных отслеживаний
 final allActiveTrackingProvider =
     StreamProvider<List<CargoTrackingModel>>((ref) {
   final trackingService = ref.watch(trackingServiceProvider);
   return trackingService.getAllActiveTracking();
 });
 
-/// РџСЂРѕРІР°Р№РґРµСЂ РѕС‚СЃР»РµР¶РёРІР°РЅРёР№ РґР»СЏ РєРѕРЅРєСЂРµС‚РЅРѕРіРѕ РІРѕРґРёС‚РµР»СЏ
+/// Провайдер отслеживаний для конкретного водителя
 final driverTrackingProvider =
     StreamProvider.family<List<CargoTrackingModel>, String>((ref, driverId) {
   final trackingService = ref.watch(trackingServiceProvider);
   return trackingService.getDriverActiveTracking(driverId);
 });
 
-/// РџСЂРѕРІР°Р№РґРµСЂ СЃС‚Р°С‚РёСЃС‚РёРєРё РѕС‚СЃР»РµР¶РёРІР°РЅРёСЏ РіСЂСѓР·Р°
+/// Провайдер статистики отслеживания груза
 final cargoTrackingStatsProvider =
     FutureProvider.family<Map<String, dynamic>, String>((ref, cargoId) async {
   final trackingService = ref.watch(trackingServiceProvider);
   return await trackingService.getCargoTrackingStats(cargoId);
 });
 
-/// РџСЂРѕРІР°Р№РґРµСЂ РґР»СЏ СЂР°СЃС‡РµС‚Р° ETA (РІСЂРµРјРµРЅРё РїСЂРёР±С‹С‚РёСЏ)
+/// Провайдер для расчета ETA (времени прибытия)
 final cargoETAProvider =
     FutureProvider.family<DateTime?, String>((ref, cargoId) async {
   final trackingService = ref.watch(trackingServiceProvider);
@@ -50,19 +50,19 @@ final cargoETAProvider =
 
   if (location == null) return null;
 
-  // Р—РґРµСЃСЊ РЅСѓР¶РЅРѕ РїРѕР»СѓС‡РёС‚СЊ РєРѕРѕСЂРґРёРЅР°С‚С‹ РЅР°Р·РЅР°С‡РµРЅРёСЏ РёР· РіСЂСѓР·Р°
-  // Р’ СЂРµР°Р»СЊРЅРѕРј РїСЂРёР»РѕР¶РµРЅРёРё СЌС‚Рѕ Р±СѓРґРµС‚ РїРѕР»СѓС‡РµРЅРѕ РёР· CargoModel
-  // РџРѕРєР° РёСЃРїРѕР»СЊР·СѓРµРј Р·Р°РіР»СѓС€РєСѓ
+  // Здесь нужно получить координаты назначения из груза
+  // В реальном приложении это будет получено из CargoModel
+  // Пока используем заглушку
   return trackingService.calculateETA(
     currentLat: location.latitude,
     currentLon: location.longitude,
-    destinationLat: 55.7558, // РњРѕСЃРєРІР° (Р·Р°РіР»СѓС€РєР°)
+    destinationLat: 55.7558, // Москва (заглушка)
     destinationLon: 37.6176,
-    averageSpeed: 60.0, // 60 РєРј/С‡ (Р·Р°РіР»СѓС€РєР°)
+    averageSpeed: 60.0, // 60 км/ч (заглушка)
   );
 });
 
-/// РљРѕРјР±РёРЅРёСЂРѕРІР°РЅРЅС‹Р№ РїСЂРѕРІР°Р№РґРµСЂ РґР»СЏ РґРµС‚Р°Р»СЊРЅРѕР№ РёРЅС„РѕСЂРјР°С†РёРё РѕР± РѕС‚СЃР»РµР¶РёРІР°РЅРёРё
+/// Комбинированный провайдер для детальной информации об отслеживании
 class CargoTrackingInfo {
   final CargoTrackingModel? currentLocation;
   final List<TrackingHistoryPoint> history;
@@ -114,7 +114,7 @@ final cargoTrackingInfoProvider =
   );
 });
 
-/// РџСЂРѕРІР°Р№РґРµСЂ РґР»СЏ РѕС‚СЃР»РµР¶РёРІР°РЅРёСЏ РЅРµСЃРєРѕР»СЊРєРёС… РіСЂСѓР·РѕРІ
+/// Провайдер для отслеживания нескольких грузов
 final multiCargoTrackingProvider =
     Provider.family<Map<String, CargoTrackingInfo>, List<String>>(
         (ref, cargoIds) {
@@ -127,12 +127,12 @@ final multiCargoTrackingProvider =
   return trackingInfo;
 });
 
-/// РџСЂРѕРІР°Р№РґРµСЂ РґР»СЏ С„РёР»СЊС‚СЂР°С†РёРё Р°РєС‚РёРІРЅС‹С… РіСЂСѓР·РѕРІ РїРѕ СЃС‚Р°С‚СѓСЃСѓ
+/// Провайдер для фильтрации активных грузов по статусу
 enum TrackingFilter {
-  all, // Р’СЃРµ
-  inTransit, // Р’ РїСѓС‚Рё
-  stopped, // РћСЃС‚Р°РЅРѕРІР»РµРЅС‹
-  delayed, // Р—Р°РґРµСЂР¶Р°РЅС‹
+  all, // Все
+  inTransit, // В пути
+  stopped, // Остановлены
+  delayed, // Задержаны
 }
 
 final filteredTrackingProvider =
@@ -161,7 +161,7 @@ final filteredTrackingProvider =
   );
 });
 
-/// РџСЂРѕРІР°Р№РґРµСЂ РґР»СЏ РїРѕРґСЃС‡РµС‚Р° РіСЂСѓР·РѕРІ РїРѕ СЃС‚Р°С‚СѓСЃР°Рј
+/// Провайдер для подсчета грузов по статусам
 final trackingCountByStatusProvider = Provider<Map<TrackingStatus, int>>((ref) {
   final allTrackingAsync = ref.watch(allActiveTrackingProvider);
 

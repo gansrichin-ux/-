@@ -71,7 +71,7 @@ class CargoRepository {
     });
   }
 
-  /// Свободные грузы — статус 'Новый' и без назначенного водителя.
+  /// Свободные грузы — статус 'published' и без назначенного перевозчика.
   Stream<List<CargoModel>> watchAvailableCargos({String? ownerId}) {
     Query<Map<String, dynamic>> query = _cargos;
     if (ownerId != null) {
@@ -81,7 +81,9 @@ class CargoRepository {
     return query.limit(80).snapshots().map((snap) {
       final cargos = snap.docs
           .map(CargoModel.fromFirestore)
-          .where((cargo) => cargo.status == CargoStatus.published && cargo.driverId == null)
+          // carrierId getter covers both driverId and executorId
+          .where((cargo) =>
+              cargo.status == CargoStatus.published && cargo.carrierId == null)
           .toList();
       cargos.sort((a, b) {
         final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
@@ -113,21 +115,40 @@ class CargoRepository {
     await _cargos.add(cargo.toFirestoreMap());
   }
 
+  Future<void> assignCarrier({
+    required String cargoId,
+    required String carrierId,
+    required String carrierName,
+  }) async {
+    // Write both legacy and new fields so old clients keep working
+    await _cargos.doc(cargoId).update({
+      'driverId': carrierId,
+      'driverName': carrierName,
+      'executorId': carrierId,
+      'executorName': carrierName,
+      'status': CargoStatus.executorSelected,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Legacy alias kept for mobile screens that still call assignDriver.
   Future<void> assignDriver({
     required String cargoId,
     required String driverId,
     required String driverName,
-  }) async {
-    // Write new canonical status; CargoModel.fromFirestore will normalise any legacy values on read
-    await _cargos.doc(cargoId).update({
-      'driverId': driverId,
-      'driverName': driverName,
-      'status': CargoStatus.executorSelected,
-    });
-  }
+  }) =>
+      assignCarrier(
+        cargoId: cargoId,
+        carrierId: driverId,
+        carrierName: driverName,
+      );
 
   Future<void> updateStatus(String cargoId, String status) async {
     await _cargos.doc(cargoId).update({'status': status});
+  }
+
+  Future<void> deleteCargo(String cargoId) async {
+    await _cargos.doc(cargoId).delete();
   }
 
   Future<String> uploadPhoto(

@@ -9,6 +9,7 @@ class MessageModel {
   final String? mediaUrl;
   final String? mediaType;
   final String? mediaName;
+  final int? mediaSize;
 
   const MessageModel({
     required this.id,
@@ -19,6 +20,7 @@ class MessageModel {
     this.mediaUrl,
     this.mediaType,
     this.mediaName,
+    this.mediaSize,
   });
 
   factory MessageModel.fromFirestore(DocumentSnapshot doc) {
@@ -32,6 +34,7 @@ class MessageModel {
       mediaUrl: data['mediaUrl'] as String?,
       mediaType: data['mediaType'] as String?,
       mediaName: data['mediaName'] as String?,
+      mediaSize: (data['mediaSize'] as num?)?.toInt(),
     );
   }
 
@@ -44,6 +47,7 @@ class MessageModel {
       if (mediaUrl?.isNotEmpty == true) 'mediaUrl': mediaUrl,
       if (mediaType?.isNotEmpty == true) 'mediaType': mediaType,
       if (mediaName?.isNotEmpty == true) 'mediaName': mediaName,
+      if (mediaSize != null && mediaSize! > 0) 'mediaSize': mediaSize,
     };
   }
 }

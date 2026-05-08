@@ -441,7 +441,7 @@ class _TenderDetailDialogState extends State<_TenderDetailDialog> {
   }
 
   bool get _isOwner => widget.tender.ownerId == widget.currentUser.uid;
-  bool get _isDriver => widget.currentUser.isDriver;
+  bool get _isCarrier => widget.currentUser.isCarrier;
 
   @override
   Widget build(BuildContext context) {
@@ -519,7 +519,7 @@ class _TenderDetailDialogState extends State<_TenderDetailDialog> {
                 ),
               ),
               // Driver: My bid / bid form
-              if (_isDriver && t.isActive && !t.isExpired) ...[
+              if (_isCarrier && t.isActive && !t.isExpired) ...[
                 const Divider(height: 16),
                 StreamBuilder<TenderBidModel?>(
                   stream: TenderRepository.instance.watchMyBid(t.id, widget.currentUser.uid),

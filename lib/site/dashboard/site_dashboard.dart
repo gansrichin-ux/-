@@ -18,17 +18,21 @@ enum SiteSection {
   users,
   activity,
   admin,
+  carriers,
+  more,
   sync,
 }
 
 class SiteDashboard extends StatefulWidget {
   final UserModel user;
+  final String? workspaceSlug;
   final bool isDark;
   final VoidCallback onToggleTheme;
 
   const SiteDashboard({
     super.key,
     required this.user,
+    required this.workspaceSlug,
     required this.isDark,
     required this.onToggleTheme,
   });
@@ -43,6 +47,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
   String? _status;
   CargoFilters _filters = CargoFilters.empty;
   UserModel? _selectedChatUser;
+  bool _onboardingPromptShown = false;
 
   late final Stream<List<CargoModel>> _cargosStream;
   late final Stream<List<UserModel>> _usersStream;
@@ -50,30 +55,79 @@ class _SiteDashboardState extends State<SiteDashboard> {
   late final Stream<List<CargoApplicationModel>> _applicationsStream;
   late final Stream<List<TransportModel>> _transportsStream;
 
+  SiteWorkspaceConfig get _workspace =>
+      siteWorkspaceFor(widget.user, widget.workspaceSlug);
+
   @override
   void initState() {
     super.initState();
     _cargosStream = CargoRepository.instance.watchAllCargos();
     _usersStream = UserRepository.instance.watchAllUsers();
-    _favoritesStream = UserRepository.instance.watchFavoriteCargoIds(widget.user.uid);
-    _applicationsStream = SiteWorkflowRepository.instance.watchApplicationsForUser(widget.user);
+    _favoritesStream =
+        UserRepository.instance.watchFavoriteCargoIds(widget.user.uid);
+    _applicationsStream =
+        SiteWorkflowRepository.instance.watchApplicationsForUser(widget.user);
     _transportsStream = TransportRepository.instance.watchAvailableTransport();
   }
 
-      List<SiteSection> get _visibleSections => [
-        SiteSection.overview,
-        SiteSection.company,
-        SiteSection.cargos,
-        SiteSection.findTransport,
-        SiteSection.myCargos,
-        SiteSection.myTransport,
-        SiteSection.favorites,
-        SiteSection.chats,
-        SiteSection.tender,
-        SiteSection.insurance,
-        SiteSection.legal,
-        SiteSection.support,
-      ];
+  void _scheduleOnboardingPrompt() {
+    if (_onboardingPromptShown || widget.user.onboardingCompleted) return;
+    _onboardingPromptShown = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final completed = await showDialog<bool>(
+        context: context,
+        barrierDismissible: true,
+        builder: (context) => _OnboardingDialog(user: widget.user),
+      );
+      if (!mounted) return;
+      try {
+        await UserRepository.instance.updateOnboarding(
+          uid: widget.user.uid,
+          completed: completed == true,
+          step: completed == true
+              ? 4
+              : widget.user.onboardingStep.clamp(1, 3).toInt(),
+        );
+      } catch (error) {
+        debugPrint('Failed to update onboarding: $error');
+      }
+    });
+  }
+
+  static const Set<SiteSection> _futureServiceSections = {
+    SiteSection.insurance,
+    SiteSection.support,
+  };
+
+  bool get _canSeeFutureServices =>
+      widget.user.isAdmin || widget.user.roles.contains('tester');
+
+  List<SiteSection> get _moreSections {
+    if (_canSeeFutureServices) return const <SiteSection>[];
+    final sections = _workspace.sections.where((section) {
+      if (section == SiteSection.sync) return false;
+      if (section == SiteSection.legal && widget.user.isLawyer) return false;
+      return _futureServiceSections.contains(section) ||
+          (section == SiteSection.legal && !_canSeeFutureServices);
+    }).toList();
+    return sections;
+  }
+
+  List<SiteSection> get _visibleSections {
+    final direct = _workspace.sections.where((section) {
+      if (section == SiteSection.sync) return false;
+      if (_canSeeFutureServices) return true;
+      if (section == SiteSection.legal && widget.user.isLawyer) return true;
+      if (_futureServiceSections.contains(section)) return false;
+      if (section == SiteSection.legal) return false;
+      return true;
+    }).toList();
+    if (_moreSections.isNotEmpty && !direct.contains(SiteSection.more)) {
+      direct.add(SiteSection.more);
+    }
+    return direct;
+  }
 
   void _selectSectionByIndex(int index) {
     final sections = _visibleSections;
@@ -96,22 +150,26 @@ class _SiteDashboardState extends State<SiteDashboard> {
           stream: _usersStream,
           builder: (context, userSnapshot) {
             final users = userSnapshot.data ?? const <UserModel>[];
-            final drivers = users.where((user) => user.isDriver).toList();
+            final carriers = users.where((user) => user.isCarrier).toList();
 
             return StreamBuilder<Set<String>>(
               stream: _favoritesStream,
               builder: (context, favoriteSnapshot) {
-                final favoriteCargoIds = favoriteSnapshot.data ?? const <String>{};
+                final favoriteCargoIds =
+                    favoriteSnapshot.data ?? const <String>{};
 
                 return StreamBuilder<List<CargoApplicationModel>>(
                   stream: _applicationsStream,
                   builder: (context, applicationSnapshot) {
-                    final applications = applicationSnapshot.data ?? const <CargoApplicationModel>[];
+                    final applications = applicationSnapshot.data ??
+                        const <CargoApplicationModel>[];
 
                     return StreamBuilder<List<TransportModel>>(
                       stream: _transportsStream,
                       builder: (context, transportSnapshot) {
-                        final transports = transportSnapshot.data ?? const <TransportModel>[];
+                        final transports =
+                            transportSnapshot.data ?? const <TransportModel>[];
+                        _scheduleOnboardingPrompt();
 
                         return AppResponsiveScaffold(
                           appBar: isWide
@@ -149,7 +207,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
                                           )
                                         : _buildSection(
                                             cargos,
-                                            drivers,
+                                            carriers,
                                             users,
                                             favoriteCargoIds,
                                             applications,
@@ -204,6 +262,13 @@ class _SiteDashboardState extends State<SiteDashboard> {
   ) {
     final colors = Theme.of(context).colorScheme;
     final now = DateFormat('dd.MM.yyyy HH:mm').format(DateTime.now());
+    final syncText = cargoSnapshot.hasError
+        ? 'Ошибка синхронизации'
+        : cargoSnapshot.connectionState == ConnectionState.active
+            ? 'Синхронизировано: $now'
+            : cargoSnapshot.connectionState == ConnectionState.none
+                ? 'Offline'
+                : 'Последнее обновление: $now';
 
     return Container(
       height: 76,
@@ -231,10 +296,10 @@ class _SiteDashboardState extends State<SiteDashboard> {
                 children: [
                   Icon(Icons.circle, size: 9, color: colors.secondary),
                   const SizedBox(width: 7),
+                  _WorkspaceMiniBadge(workspace: _workspace),
+                  const SizedBox(width: 10),
                   Text(
-                    cargoSnapshot.connectionState == ConnectionState.active
-                        ? 'Синхронизировано: $now'
-                        : 'Подключение...',
+                    syncText,
                     style: TextStyle(
                       color: colors.onSurfaceVariant,
                       fontWeight: FontWeight.w700,
@@ -317,6 +382,10 @@ class _SiteDashboardState extends State<SiteDashboard> {
                   .toList(),
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: _WorkspaceSidebarCard(workspace: _workspace),
+          ),
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: _ExchangeRatePanel(),
@@ -354,7 +423,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
 
   Widget _buildSection(
     List<CargoModel> cargos,
-    List<UserModel> drivers,
+    List<UserModel> carriers,
     List<UserModel> users,
     Set<String> favoriteCargoIds,
     List<CargoApplicationModel> applications,
@@ -363,10 +432,33 @@ class _SiteDashboardState extends State<SiteDashboard> {
     switch (_section) {
       case SiteSection.overview:
         return OverviewSection(
+          workspace: _workspace,
           cargos: _personalCargos(cargos),
-          drivers: drivers,
+          allCargos: cargos,
+          carriers: carriers,
+          users: users,
+          applications: applications,
+          transports: transports,
           user: widget.user,
+          onCreateCargo: widget.user.canCreateCargo
+              ? () => _showCargoDialog(context)
+              : null,
+          onAddTransport: widget.user.canApplyToCargo
+              ? () => _showTransportDialog(context)
+              : null,
           onOpenCargo: () => setState(() => _section = SiteSection.myCargos),
+          onOpenRecentCargo: (cargo) {
+            setState(() {
+              _section = SiteSection.myCargos;
+              _query = cargo.title;
+              _status = null;
+              _filters = CargoFilters.empty;
+            });
+          },
+          onOpenSection: (section) {
+            setState(() => _section = section);
+          },
+          onOpenSettings: () => _openProfileSettings(widget.user),
           onOpenMyCargosWithStatus: (status) {
             setState(() {
               _section = SiteSection.myCargos;
@@ -385,16 +477,19 @@ class _SiteDashboardState extends State<SiteDashboard> {
           },
         );
       case SiteSection.company:
-        return const _PlaceholderSection(
-          title: 'Моя компания',
-          description: 'Управление профилем компании, сотрудниками и документами организации.',
+        return CompanySection(
+          user: widget.user,
+          users: users,
+          cargos: _personalCargos(cargos),
+          onOpenProfile: () => _openProfile(widget.user),
+          onOpenChats: () => setState(() => _section = SiteSection.chats),
         );
       case SiteSection.myCargos:
         final personalCargos = _filteredCargos(_personalCargos(cargos));
         return CargosSection(
           cargos: personalCargos,
           allCargos: _personalCargos(cargos),
-          drivers: drivers,
+          carriers: carriers,
           user: widget.user,
           query: _query,
           status: _status,
@@ -408,8 +503,9 @@ class _SiteDashboardState extends State<SiteDashboard> {
           onStatusChanged: (value) => setState(() => _status = value),
           onFiltersChanged: (value) => setState(() => _filters = value),
           onAddCargo: () => _showCargoDialog(context),
-          onAssignDriver: _assignDriver,
+          onAssignCarrier: _assignCarrier,
           onChangeStatus: _changeStatus,
+          onDeleteCargo: _deleteCargo,
           onOpenChat: (cargo) => _openChatForCargo(cargo, users),
           onOpenProfile: _openProfile,
           favoriteCargoIds: favoriteCargoIds,
@@ -423,7 +519,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
         return CargosSection(
           cargos: filtered,
           allCargos: cargos,
-          drivers: drivers,
+          carriers: carriers,
           user: widget.user,
           query: _query,
           status: _status,
@@ -432,8 +528,9 @@ class _SiteDashboardState extends State<SiteDashboard> {
           onStatusChanged: (value) => setState(() => _status = value),
           onFiltersChanged: (value) => setState(() => _filters = value),
           onAddCargo: () => _showCargoDialog(context),
-          onAssignDriver: _assignDriver,
+          onAssignCarrier: _assignCarrier,
           onChangeStatus: _changeStatus,
+          onDeleteCargo: _deleteCargo,
           onOpenChat: (cargo) => _openChatForCargo(cargo, users),
           onOpenProfile: _openProfile,
           favoriteCargoIds: favoriteCargoIds,
@@ -457,6 +554,13 @@ class _SiteDashboardState extends State<SiteDashboard> {
           user: widget.user,
           initialPeer: _selectedChatUser,
         );
+      case SiteSection.carriers:
+        return CarriersSection(
+          cargos: cargos,
+          carriers: carriers,
+          user: widget.user,
+          onAssignCarrier: _assignCarrier,
+        );
       case SiteSection.notifications:
         return NotificationsSection(user: widget.user);
       case SiteSection.users:
@@ -476,7 +580,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
           allCargos: cargos
               .where((cargo) => favoriteCargoIds.contains(cargo.id))
               .toList(),
-          drivers: drivers,
+          carriers: carriers,
           user: widget.user,
           query: _query,
           status: _status,
@@ -490,8 +594,9 @@ class _SiteDashboardState extends State<SiteDashboard> {
           onStatusChanged: (value) => setState(() => _status = value),
           onFiltersChanged: (value) => setState(() => _filters = value),
           onAddCargo: () => _showCargoDialog(context),
-          onAssignDriver: _assignDriver,
+          onAssignCarrier: _assignCarrier,
           onChangeStatus: _changeStatus,
+          onDeleteCargo: _deleteCargo,
           onOpenChat: (cargo) => _openChatForCargo(cargo, users),
           onOpenProfile: _openProfile,
           favoriteCargoIds: favoriteCargoIds,
@@ -501,7 +606,10 @@ class _SiteDashboardState extends State<SiteDashboard> {
           onApplicationDecision: _decideApplication,
         );
       case SiteSection.activity:
-        return ActivitySection(user: widget.user);
+        return ActivitySection(
+          user: widget.user,
+          onOpenActivity: (item) => _openActivityTarget(item, users, cargos),
+        );
       case SiteSection.findTransport:
         return FindTransportSection(
           user: widget.user,
@@ -516,24 +624,50 @@ class _SiteDashboardState extends State<SiteDashboard> {
           onOpenProfile: _openProfile,
         );
       case SiteSection.insurance:
-        return const _PlaceholderSection(
+        return ServiceRequestSection(
+          user: widget.user,
+          type: 'insurance',
           title: 'Страхование груза',
-          description: 'Оформление страховых полисов для ваших перевозок онлайн.',
+          subtitle:
+              'Отправьте параметры перевозки, чтобы зафиксировать заявку на полис и историю обращения.',
+          icon: Icons.verified_user_outlined,
+          subjectLabel: 'Что страхуем',
+          messageLabel: 'Условия и комментарии',
+          showRouteFields: true,
+          showAmountField: true,
         );
       case SiteSection.legal:
-        return const _PlaceholderSection(
+        return ServiceRequestSection(
+          user: widget.user,
+          type: 'legal',
           title: 'Помощь юриста',
-          description: 'Консультации по транспортному праву, помощь в разрешении споров и проверка контрагентов.',
+          subtitle:
+              'Создайте обращение по спору, договору, оплате или проверке контрагента.',
+          icon: Icons.gavel_outlined,
+          subjectLabel: 'Тема обращения',
+          messageLabel: 'Опишите ситуацию',
         );
       case SiteSection.support:
-        return const _PlaceholderSection(
+        return ServiceRequestSection(
+          user: widget.user,
+          type: 'support',
           title: 'Техподдержка',
-          description: 'Связь со специалистами Logist App для решения технических вопросов.',
+          subtitle:
+              'Сообщите о проблеме сайта, аккаунта, синхронизации или данных в кабинете.',
+          icon: Icons.support_agent_outlined,
+          subjectLabel: 'Что не работает',
+          messageLabel: 'Шаги, ошибка и ожидаемый результат',
+        );
+      case SiteSection.more:
+        return _MoreServicesSection(
+          sections: _moreSections,
+          onOpen: (section) => setState(() => _section = section),
         );
       case SiteSection.admin:
         return AdminSection(user: widget.user, users: users, cargos: cargos);
       case SiteSection.sync:
-        return SyncSection(cargos: cargos, drivers: drivers, user: widget.user);
+        return SyncSection(
+            cargos: cargos, carriers: carriers, user: widget.user);
     }
   }
 
@@ -542,10 +676,10 @@ class _SiteDashboardState extends State<SiteDashboard> {
     List<UserModel> users,
   ) async {
     final peerId = cargo.ownerId == widget.user.uid
-        ? cargo.driverId
-        : cargo.driverId == widget.user.uid
+        ? cargo.carrierId
+        : cargo.carrierId == widget.user.uid
             ? cargo.ownerId
-            : (cargo.ownerId ?? cargo.driverId);
+            : (cargo.ownerId ?? cargo.carrierId);
     final peer = users.cast<UserModel?>().firstWhere(
           (user) => user?.uid == peerId,
           orElse: () => null,
@@ -572,6 +706,12 @@ class _SiteDashboardState extends State<SiteDashboard> {
   Future<void> _openProfile(UserModel profile) async {
     context
         .push('/profile/${profile.profileSlug}/${ProfileSection.account.path}');
+  }
+
+  Future<void> _openProfileSettings(UserModel profile) async {
+    context.push(
+      '/profile/${profile.profileSlug}/${ProfileSection.settings.path}',
+    );
   }
 
   Future<void> _openNotificationSource(
@@ -612,7 +752,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
           _query = cargo?.title ?? '';
           _section = cargo != null &&
                   (cargo.ownerId == widget.user.uid ||
-                      cargo.driverId == widget.user.uid)
+                      cargo.carrierId == widget.user.uid)
               ? SiteSection.myCargos
               : SiteSection.cargos;
         });
@@ -633,13 +773,71 @@ class _SiteDashboardState extends State<SiteDashboard> {
     }
   }
 
+  Future<void> _openActivityTarget(
+    ActivityLogModel item,
+    List<UserModel> users,
+    List<CargoModel> cargos,
+  ) async {
+    final targetType = item.targetType ?? item.type;
+    final targetId = targetType == 'document'
+        ? (item.metadata['cargoId']?.toString() ??
+            item.targetId ??
+            item.cargoId)
+        : item.targetId ?? item.cargoId;
+    if (targetId == null || targetId.isEmpty) return;
+
+    switch (targetType) {
+      case 'chat':
+        final ids = targetId.split('_');
+        final peerId = ids.firstWhere(
+          (id) => id != widget.user.uid,
+          orElse: () => '',
+        );
+        final peer = users.cast<UserModel?>().firstWhere(
+              (user) => user?.uid == peerId,
+              orElse: () => null,
+            );
+        if (peer != null) await _openChatWithUser(peer);
+        return;
+      case 'user':
+        final profile = users.cast<UserModel?>().firstWhere(
+              (user) => user?.uid == targetId,
+              orElse: () => null,
+            );
+        if (profile != null) await _openProfile(profile);
+        return;
+      case 'application':
+        setState(() => _section = SiteSection.applications);
+        return;
+      case 'transport':
+        setState(() => _section = SiteSection.findTransport);
+        return;
+      case 'document':
+      case 'cargo':
+      default:
+        final cargo = cargos.cast<CargoModel?>().firstWhere(
+              (item) => item?.id == targetId,
+              orElse: () => null,
+            );
+        setState(() {
+          _section = _personalCargos(cargos).any((item) => item.id == targetId)
+              ? SiteSection.myCargos
+              : SiteSection.cargos;
+          _query = cargo?.title ?? item.targetTitle ?? '';
+          _status = null;
+          _filters = CargoFilters.empty;
+        });
+    }
+  }
+
   bool get _canCreateCargo =>
       widget.user.canCreateCargo &&
       (_section == SiteSection.myCargos || _section == SiteSection.cargos);
 
   bool get _canCreateTransport =>
       widget.user.canApplyToCargo &&
-      (_section == SiteSection.myTransport || _section == SiteSection.findTransport);
+      (_section == SiteSection.myTransport ||
+          _section == SiteSection.findTransport);
 
   Widget? _fab(BuildContext context) {
     if (_canCreateCargo) {
@@ -661,9 +859,11 @@ class _SiteDashboardState extends State<SiteDashboard> {
 
   List<CargoModel> _personalCargos(List<CargoModel> cargos) {
     return cargos.where((cargo) {
-      final isMyDriverCargo = widget.user.canApplyToCargo && cargo.driverId == widget.user.uid;
-      final isMyOwnerCargo = widget.user.canCreateCargo && cargo.ownerId == widget.user.uid;
-      return isMyDriverCargo || isMyOwnerCargo;
+      final isMyCarrierCargo =
+          widget.user.canApplyToCargo && cargo.carrierId == widget.user.uid;
+      final isMyOwnerCargo =
+          widget.user.canCreateCargo && cargo.ownerId == widget.user.uid;
+      return isMyCarrierCargo || isMyOwnerCargo;
     }).toList();
   }
 
@@ -693,61 +893,78 @@ class _SiteDashboardState extends State<SiteDashboard> {
       if (_status != null && cargo.status != _status) return false;
 
       // Advanced Filters
-      if (_filters.onlyWithoutDriver && cargo.driverId != null) return false;
+      if (_filters.onlyWithoutCarrier && cargo.carrierId != null) return false;
       if (_filters.onlyActive && !cargo.isActive) return false;
 
       // Route Filters
       if (from.isNotEmpty || to.isNotEmpty) {
         final cargoFrom = cargo.from.toLowerCase();
         final cargoTo = cargo.to.toLowerCase();
-        
+
         bool matches = true;
         if (from.isNotEmpty && !cargoFrom.contains(from)) matches = false;
         if (to.isNotEmpty && !cargoTo.contains(to)) matches = false;
-        
+
         if (!matches && _filters.isTwoWaySearch) {
           // Check reverse direction
           bool matchesReverse = true;
-          if (from.isNotEmpty && !cargoTo.contains(from)) matchesReverse = false;
+          if (from.isNotEmpty && !cargoTo.contains(from))
+            matchesReverse = false;
           if (to.isNotEmpty && !cargoFrom.contains(to)) matchesReverse = false;
           matches = matchesReverse;
         }
-        
+
         if (!matches) return false;
       }
 
       // Cargo Specs Filters
-      if (bodyType.isNotEmpty && (cargo.bodyType?.toLowerCase() ?? '') != bodyType) return false;
-      if (_filters.truckType != null && cargo.truckType != _filters.truckType) return false;
-      if (_filters.shipmentType != null && cargo.shipmentType != _filters.shipmentType) return false;
-      if (_filters.carCount != null && cargo.carCount != _filters.carCount) return false;
+      if (bodyType.isNotEmpty &&
+          (cargo.bodyType?.toLowerCase() ?? '') != bodyType) return false;
+      if (_filters.truckType != null && cargo.truckType != _filters.truckType)
+        return false;
+      if (_filters.shipmentType != null &&
+          cargo.shipmentType != _filters.shipmentType) return false;
+      if (_filters.carCount != null && cargo.carCount != _filters.carCount)
+        return false;
 
       // Weight & Volume
-      if (_filters.minWeight != null && (cargo.weightKg ?? 0) < _filters.minWeight!) return false;
-      if (_filters.maxWeight != null && (cargo.weightKg ?? double.infinity) > _filters.maxWeight!) return false;
-      if (_filters.minVolume != null && (cargo.volumeM3 ?? 0) < _filters.minVolume!) return false;
-      if (_filters.maxVolume != null && (cargo.volumeM3 ?? double.infinity) > _filters.maxVolume!) return false;
+      if (_filters.minWeight != null &&
+          (cargo.weightKg ?? 0) < _filters.minWeight!) return false;
+      if (_filters.maxWeight != null &&
+          (cargo.weightKg ?? double.infinity) > _filters.maxWeight!)
+        return false;
+      if (_filters.minVolume != null &&
+          (cargo.volumeM3 ?? 0) < _filters.minVolume!) return false;
+      if (_filters.maxVolume != null &&
+          (cargo.volumeM3 ?? double.infinity) > _filters.maxVolume!)
+        return false;
 
       // Price & Payment
       if (_filters.priceNegotiable) {
         if (cargo.price != null && cargo.price! > 0) return false;
       } else {
-        if (_filters.minPrice != null && (cargo.price ?? 0) < _filters.minPrice!) return false;
-        if (_filters.maxPrice != null && (cargo.price ?? double.infinity) > _filters.maxPrice!) return false;
-        if (_filters.currency != null && cargo.currency != _filters.currency) return false;
+        if (_filters.minPrice != null &&
+            (cargo.price ?? 0) < _filters.minPrice!) return false;
+        if (_filters.maxPrice != null &&
+            (cargo.price ?? double.infinity) > _filters.maxPrice!) return false;
+        if (_filters.currency != null && cargo.currency != _filters.currency)
+          return false;
       }
 
       // Badges & Readiness
       if (_filters.isUrgent && !cargo.isUrgent) return false;
       if (_filters.isHumanitarian && !cargo.isHumanitarian) return false;
       if (_filters.hasPhoto && cargo.photos.isEmpty) return false;
-      if (_filters.isReady != null && cargo.isReady != _filters.isReady) return false;
+      if (_filters.isReady != null && cargo.isReady != _filters.isReady)
+        return false;
 
       // Date
       if (_filters.loadingDate != null) {
         if (cargo.loadingDate == null) return false;
-        final cargoDate = DateTime(cargo.loadingDate!.year, cargo.loadingDate!.month, cargo.loadingDate!.day);
-        final filterDate = DateTime(_filters.loadingDate!.year, _filters.loadingDate!.month, _filters.loadingDate!.day);
+        final cargoDate = DateTime(cargo.loadingDate!.year,
+            cargo.loadingDate!.month, cargo.loadingDate!.day);
+        final filterDate = DateTime(_filters.loadingDate!.year,
+            _filters.loadingDate!.month, _filters.loadingDate!.day);
         if (cargoDate != filterDate) return false;
       }
 
@@ -757,7 +974,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
           cargo.from.toLowerCase().contains(query) ||
           cargo.to.toLowerCase().contains(query) ||
           (cargo.bodyType?.toLowerCase().contains(query) ?? false) ||
-          (cargo.driverName?.toLowerCase().contains(query) ?? false);
+          (cargo.carrierName?.toLowerCase().contains(query) ?? false);
     }).toList();
   }
 
@@ -776,7 +993,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
   Future<void> _showTransportDialog(BuildContext context) async {
     final created = await showDialog<bool>(
       context: context,
-      builder: (context) => AddTransportDialog(ownerId: widget.user.uid),
+      builder: (context) => AddTransportDialog(owner: widget.user),
     );
 
     if (!mounted || created != true) return;
@@ -800,21 +1017,21 @@ class _SiteDashboardState extends State<SiteDashboard> {
     }
   }
 
-  Future<void> _assignDriver(CargoModel cargo, UserModel driver) async {
+  Future<void> _assignCarrier(CargoModel cargo, UserModel carrier) async {
     try {
       await CargoWorkflowService.instance.assignDriver(
         cargo: cargo,
-        driver: driver,
+        driver: carrier,
         actor: widget.user,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${driver.displayName} назначен на груз')),
+        SnackBar(content: Text('${carrier.displayName} назначен на груз')),
       );
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Не удалось назначить водителя: $error')),
+        SnackBar(content: Text('Не удалось назначить перевозчика: $error')),
       );
     }
   }
@@ -834,6 +1051,21 @@ class _SiteDashboardState extends State<SiteDashboard> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Не удалось обновить статус: $error')),
+      );
+    }
+  }
+
+  Future<void> _deleteCargo(CargoModel cargo) async {
+    try {
+      await CargoRepository.instance.deleteCargo(cargo.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Груз удален')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Не удалось удалить груз: $error')),
       );
     }
   }
@@ -884,6 +1116,189 @@ class _SiteDashboardState extends State<SiteDashboard> {
   }
 }
 
+class _MoreServicesSection extends StatelessWidget {
+  final List<SiteSection> sections;
+  final ValueChanged<SiteSection> onOpen;
+
+  const _MoreServicesSection({
+    required this.sections,
+    required this.onOpen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 96),
+      children: [
+        const AppPageHeader(
+          title: 'Ещё',
+          subtitle:
+              'Дополнительные сервисы вынесены отдельно от рабочего меню.',
+        ),
+        const SizedBox(height: 16),
+        AppResponsiveGrid(
+          desktopCrossAxisCount: 3,
+          tabletCrossAxisCount: 2,
+          mobileCrossAxisCount: 1,
+          children: sections
+              .map(
+                (section) => AppCard(
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        _sectionIcon(section, selected: true),
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        _sectionTitle(section),
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w900),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Сервис доступен отдельно, чтобы не перегружать основной рабочий стол.',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      OutlinedButton.icon(
+                        onPressed: () => onOpen(section),
+                        icon: const Icon(Icons.open_in_new_rounded),
+                        label: const Text('Открыть'),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+              .toList(),
+        ),
+      ],
+    );
+  }
+}
+
+class _OnboardingDialog extends StatelessWidget {
+  final UserModel user;
+
+  const _OnboardingDialog({required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final firstAction = user.isCarrier && !user.canCreateCargo
+        ? 'Добавьте транспорт или найдите первый груз.'
+        : user.isForwarder
+            ? 'Найдите груз и откройте заявки.'
+            : 'Создайте первый груз или найдите перевозчика.';
+
+    return AlertDialog(
+      title: const Text('Быстрый старт'),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _OnboardingStep(
+              index: 1,
+              title: 'Роль выбрана',
+              text: user.displayRole,
+              color: colors.primary,
+            ),
+            _OnboardingStep(
+              index: 2,
+              title: 'Заполните профиль',
+              text: 'Имя, контакты, регион, описание и фото.',
+              color: colors.primary,
+            ),
+            _OnboardingStep(
+              index: 3,
+              title: 'Первое действие',
+              text: firstAction,
+              color: colors.primary,
+            ),
+            _OnboardingStep(
+              index: 4,
+              title: 'Готово',
+              text: 'После этого рабочий стол станет полезнее.',
+              color: colors.primary,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Позже'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Перейти в кабинет'),
+        ),
+      ],
+    );
+  }
+}
+
+class _OnboardingStep extends StatelessWidget {
+  final int index;
+  final String title;
+  final String text;
+  final Color color;
+
+  const _OnboardingStep({
+    required this.index,
+    required this.title,
+    required this.text,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 14,
+            backgroundColor: color.withOpacity(0.12),
+            child: Text(
+              '$index',
+              style: TextStyle(color: color, fontWeight: FontWeight.w900),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: const TextStyle(fontWeight: FontWeight.w900)),
+                const SizedBox(height: 3),
+                Text(
+                  text,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 String _sectionTitle(SiteSection section) {
   switch (section) {
     case SiteSection.overview:
@@ -902,6 +1317,8 @@ String _sectionTitle(SiteSection section) {
       return 'Чаты';
     case SiteSection.notifications:
       return 'Уведомления';
+    case SiteSection.carriers:
+      return 'Перевозчики';
     case SiteSection.users:
       return 'Пользователи';
     case SiteSection.favorites:
@@ -920,6 +1337,8 @@ String _sectionTitle(SiteSection section) {
       return 'Техподдержка';
     case SiteSection.admin:
       return 'Админ';
+    case SiteSection.more:
+      return 'Ещё';
     case SiteSection.sync:
       return 'Синхронизация';
   }
@@ -943,6 +1362,8 @@ String _sectionShortTitle(SiteSection section) {
       return 'Чаты';
     case SiteSection.notifications:
       return 'Инфо';
+    case SiteSection.carriers:
+      return 'Парк';
     case SiteSection.users:
       return 'Люди';
     case SiteSection.favorites:
@@ -961,6 +1382,8 @@ String _sectionShortTitle(SiteSection section) {
       return 'Поддержка';
     case SiteSection.admin:
       return 'Админ';
+    case SiteSection.more:
+      return 'Ещё';
     case SiteSection.sync:
       return 'Sync';
   }
@@ -975,7 +1398,7 @@ IconData _sectionIcon(SiteSection section, {required bool selected}) {
     case SiteSection.company:
       return selected ? Icons.business_rounded : Icons.business_outlined;
     case SiteSection.myCargos:
-      return selected ? Icons.add_box_rounded : Icons.add_box_outlined;
+      return selected ? Icons.inventory_rounded : Icons.inventory_2_outlined;
     case SiteSection.cargos:
       return selected ? Icons.inventory_2_rounded : Icons.inventory_2_outlined;
     case SiteSection.tender:
@@ -988,90 +1411,37 @@ IconData _sectionIcon(SiteSection section, {required bool selected}) {
       return selected
           ? Icons.notifications_active_rounded
           : Icons.notifications_none_rounded;
+    case SiteSection.carriers:
+      return selected ? Icons.badge_rounded : Icons.badge_outlined;
     case SiteSection.users:
       return selected ? Icons.badge_rounded : Icons.badge_outlined;
     case SiteSection.favorites:
-      return selected ? Icons.check_circle_rounded : Icons.check_circle_outline_rounded;
+      return selected ? Icons.star_rounded : Icons.star_border_rounded;
     case SiteSection.activity:
       return selected ? Icons.manage_history_rounded : Icons.history_rounded;
     case SiteSection.findTransport:
       return selected
-          ? Icons.local_shipping_rounded
-          : Icons.local_shipping_outlined;
+          ? Icons.travel_explore_rounded
+          : Icons.travel_explore_outlined;
     case SiteSection.myTransport:
-      return selected ? Icons.commute_rounded : Icons.commute_outlined;
+      return selected ? Icons.garage_rounded : Icons.garage_outlined;
     case SiteSection.insurance:
-      return selected ? Icons.verified_user_rounded : Icons.verified_user_outlined;
+      return selected
+          ? Icons.verified_user_rounded
+          : Icons.verified_user_outlined;
     case SiteSection.legal:
       return selected ? Icons.gavel_rounded : Icons.gavel_outlined;
     case SiteSection.support:
-      return selected ? Icons.support_agent_rounded : Icons.support_agent_outlined;
+      return selected
+          ? Icons.support_agent_rounded
+          : Icons.support_agent_outlined;
     case SiteSection.admin:
       return selected
           ? Icons.admin_panel_settings_rounded
           : Icons.admin_panel_settings_outlined;
+    case SiteSection.more:
+      return selected ? Icons.more_horiz_rounded : Icons.more_horiz_outlined;
     case SiteSection.sync:
       return selected ? Icons.sync_rounded : Icons.sync_outlined;
-  }
-}
-
-class _PlaceholderSection extends StatelessWidget {
-  final String title;
-  final String description;
-
-  const _PlaceholderSection({
-    required this.title,
-    required this.description,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: AppCard(
-        constraints: const BoxConstraints(maxWidth: 500),
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.construction_rounded, size: 64, color: Colors.orange),
-            const SizedBox(height: 24),
-            Text(
-              'Раздел в разработке',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              description,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 32),
-            AppButton(
-              label: 'Вернуться в кабинет',
-              onPressed: () {
-                final state = context.findAncestorStateOfType<_SiteDashboardState>();
-                if (state != null) {
-                  // ignore: invalid_use_of_protected_member
-                  state.setState(() => state._section = SiteSection.overview);
-                }
-              },
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
