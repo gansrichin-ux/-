@@ -620,6 +620,8 @@ class _ProfileAccountSection extends StatelessWidget {
   Widget _buildInfo(BuildContext context) {
     return Column(
       children: [
+        _ProfileStatusCard(user: profileUser, isOwner: isOwner, onEdit: onEdit),
+        const SizedBox(height: 14),
         _ProfileDataRow(label: 'ID', value: profileUser.uid.substring(0, 8)),
         _ProfileDataRow(label: 'Логин', value: profileUser.displayUsername),
         _ProfileDataRow(label: 'E-mail', value: profileUser.email),
@@ -1024,6 +1026,112 @@ class _ProfilePanel extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           child,
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileStatusCard extends StatelessWidget {
+  final UserModel user;
+  final bool isOwner;
+  final VoidCallback onEdit;
+
+  const _ProfileStatusCard({
+    required this.user,
+    required this.isOwner,
+    required this.onEdit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final percent = user.effectiveProfileCompletenessPercent;
+    final status = user.effectiveProfileStatus;
+    final label = switch (status) {
+      'verified' => 'Профиль подтверждён',
+      'pending_review' => 'Профиль проверяется',
+      'rejected' => 'Требуются исправления',
+      _ => 'Профиль не заполнен',
+    };
+    final icon = switch (status) {
+      'verified' => Icons.verified_rounded,
+      'pending_review' => Icons.pending_actions_rounded,
+      'rejected' => Icons.error_outline_rounded,
+      _ => Icons.assignment_late_outlined,
+    };
+    final accent = switch (status) {
+      'verified' => const Color(0xFF16A34A),
+      'pending_review' => const Color(0xFFEAB308),
+      'rejected' => colors.error,
+      _ => colors.primary,
+    };
+    final missing = user.profileMissingItems.take(4).join(', ');
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: accent.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: accent.withOpacity(0.22)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: accent),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ),
+              Text(
+                '$percent%',
+                style: TextStyle(color: accent, fontWeight: FontWeight.w900),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          LinearProgressIndicator(
+            minHeight: 7,
+            value: percent / 100,
+            color: accent,
+            backgroundColor: colors.surfaceContainerHighest,
+          ),
+          if (user.profileReviewComment?.trim().isNotEmpty == true) ...[
+            const SizedBox(height: 8),
+            Text(
+              user.profileReviewComment!,
+              style: TextStyle(
+                color: colors.onSurfaceVariant,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ] else if (missing.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Заполнить: $missing',
+              style: TextStyle(
+                color: colors.onSurfaceVariant,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+          if (isOwner && percent < 100) ...[
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton.icon(
+                onPressed: onEdit,
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                label: const Text('Заполнить профиль'),
+              ),
+            ),
+          ],
         ],
       ),
     );

@@ -55,8 +55,8 @@ class SiteWorkflowRepository {
       return _applications.limit(200).snapshots().map((snap) {
         final items = snap.docs
             .map(CargoApplicationModel.fromFirestore)
-            .where((app) =>
-                app.ownerId == user.uid || app.applicantId == user.uid)
+            .where(
+                (app) => app.ownerId == user.uid || app.applicantId == user.uid)
             .toList();
         items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
         return items;
@@ -105,6 +105,17 @@ class SiteWorkflowRepository {
         .limit(120)
         .snapshots()
         .map((snap) {
+      final items = snap.docs.map(ActivityLogModel.fromFirestore).toList();
+      items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return items;
+    });
+  }
+
+  Stream<List<ActivityLogModel>> watchAuditActivity(UserModel user) {
+    if (!user.isAdmin && !user.isLogistician) {
+      return watchActivity(user.uid);
+    }
+    return _activity.limit(160).snapshots().map((snap) {
       final items = snap.docs.map(ActivityLogModel.fromFirestore).toList();
       items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return items;
@@ -214,6 +225,10 @@ class SiteWorkflowRepository {
       cargo: null,
       type: 'service_request',
       visibleTo: [user.uid],
+      targetType: 'support_ticket',
+      targetId: ref.id,
+      targetTitle: title.trim(),
+      metadata: {'serviceType': type},
     );
 
     await batch.commit();
@@ -271,6 +286,9 @@ class SiteWorkflowRepository {
       cargo: cargo,
       type: 'application',
       visibleTo: _visibleTo(cargo, applicant.uid),
+      targetType: 'application',
+      targetId: applicationId,
+      targetTitle: cargo.title,
     );
 
     await batch.commit();
@@ -329,6 +347,9 @@ class SiteWorkflowRepository {
       cargo: cargo,
       type: 'application',
       visibleTo: _visibleTo(cargo, application.applicantId),
+      targetType: 'application',
+      targetId: application.id,
+      targetTitle: cargo.title,
     );
 
     await batch.commit();
@@ -464,6 +485,10 @@ class SiteWorkflowRepository {
       cargo: cargo,
       type: 'document',
       visibleTo: _visibleTo(cargo, uploader.uid),
+      targetType: 'document',
+      targetId: docRef.id,
+      targetTitle: fileName,
+      metadata: {'cargoId': cargo.id},
     );
     await batch.commit();
 
@@ -506,6 +531,9 @@ class SiteWorkflowRepository {
       cargo: null,
       type: 'report',
       visibleTo: [reporter.uid, target.uid],
+      targetType: 'user',
+      targetId: target.uid,
+      targetTitle: target.displayName,
     );
 
     await batch.commit();
@@ -556,6 +584,10 @@ class SiteWorkflowRepository {
     required CargoModel? cargo,
     required String type,
     required List<String> visibleTo,
+    String? targetType,
+    String? targetId,
+    String? targetTitle,
+    Map<String, Object?> metadata = const {},
   }) {
     final ref = _activity.doc();
     batch.set(ref, {
@@ -563,7 +595,12 @@ class SiteWorkflowRepository {
       'body': body,
       'actorId': actor.uid,
       'actorName': actor.displayName,
+      'actorRole': actor.role,
       'cargoId': cargo?.id,
+      'targetType': targetType ?? (cargo == null ? type : 'cargo'),
+      'targetId': targetId ?? cargo?.id,
+      'targetTitle': targetTitle ?? cargo?.title,
+      'metadata': metadata,
       'type': type,
       'visibleTo': visibleTo.toSet().toList(),
       'createdAt': FieldValue.serverTimestamp(),

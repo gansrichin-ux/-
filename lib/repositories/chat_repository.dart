@@ -91,6 +91,7 @@ class ChatRepository {
     String? mediaUrl;
     String? mediaType;
     String? mediaName;
+    int? mediaSize;
 
     if (media != null) {
       mediaName = _safeFileName(media.name);
@@ -99,6 +100,7 @@ class ChatRepository {
           ? _guessMimeType(mediaName)
           : detectedMediaType;
       final bytes = await media.readAsBytes();
+      mediaSize = bytes.length;
       final storageRef = _storage.ref().child(
             'direct_chats/$conversationId/${DateTime.now().millisecondsSinceEpoch}_$mediaName',
           );
@@ -131,6 +133,7 @@ class ChatRepository {
       mediaUrl: mediaUrl,
       mediaType: mediaType,
       mediaName: mediaName,
+      mediaSize: mediaSize,
     );
 
     final conversationRef = _conversations.doc(conversationId);
@@ -213,6 +216,6 @@ class ChatRepository {
     if (lower.endsWith('.xlsx')) {
       return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     }
-    return 'image/jpeg';
+    return 'application/octet-stream';
   }
 }

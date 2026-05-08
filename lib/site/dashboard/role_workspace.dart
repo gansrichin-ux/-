@@ -339,12 +339,12 @@ class _WorkspaceSidebarCard extends StatelessWidget {
   }
 }
 
-class _RoleWorkspaceHero extends StatelessWidget {
+class RoleWorkspaceHero extends StatelessWidget {
   final SiteWorkspaceConfig workspace;
   final UserModel user;
   final ValueChanged<SiteSection> onOpenSection;
 
-  const _RoleWorkspaceHero({
+  const RoleWorkspaceHero({
     required this.workspace,
     required this.user,
     required this.onOpenSection,

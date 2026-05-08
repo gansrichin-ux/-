@@ -100,6 +100,10 @@ class ActivityLogModel {
   final String actorId;
   final String actorName;
   final String? cargoId;
+  final String? targetType;
+  final String? targetId;
+  final String? targetTitle;
+  final Map<String, dynamic> metadata;
   final String type;
   final DateTime createdAt;
 
@@ -112,6 +116,10 @@ class ActivityLogModel {
     required this.type,
     required this.createdAt,
     this.cargoId,
+    this.targetType,
+    this.targetId,
+    this.targetTitle,
+    this.metadata = const {},
   });
 
   factory ActivityLogModel.fromFirestore(DocumentSnapshot doc) {
@@ -123,10 +131,20 @@ class ActivityLogModel {
       actorId: data['actorId'] as String? ?? '',
       actorName: data['actorName'] as String? ?? '',
       cargoId: data['cargoId'] as String?,
+      targetType: data['targetType'] as String? ??
+          (data['cargoId'] != null ? 'cargo' : null),
+      targetId: (data['targetId'] as String?) ?? (data['cargoId'] as String?),
+      targetTitle: data['targetTitle'] as String?,
+      metadata: Map<String, dynamic>.from(
+        data['metadata'] as Map<String, dynamic>? ?? const {},
+      ),
       type: data['type'] as String? ?? 'system',
       createdAt: _readWorkflowDate(data['createdAt']),
     );
   }
+
+  bool get hasTarget =>
+      targetType?.isNotEmpty == true && targetId?.isNotEmpty == true;
 }
 
 class UserReportModel {

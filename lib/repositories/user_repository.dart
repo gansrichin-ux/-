@@ -114,6 +114,18 @@ class UserRepository {
     final avatarUrl = avatar == null
         ? null
         : await uploadProfilePhoto(user: user, file: avatar);
+    final updatedUser = user.copyWith(
+      name: name.trim(),
+      aboutMe: aboutMe.trim(),
+      car: user.isDriver ? (car ?? '').trim() : user.car,
+      avatarUrl: avatarUrl ?? user.avatarUrl,
+    );
+    final completeness = updatedUser.calculatedProfileCompletenessPercent;
+    final nextProfileStatus = user.profileStatus == 'verified'
+        ? 'verified'
+        : completeness >= 90
+            ? 'pending_review'
+            : 'profile_incomplete';
     final updates = {
       'name': name.trim(),
       'aboutMe': aboutMe.trim(),
@@ -121,6 +133,8 @@ class UserRepository {
       if (avatarUrl != null) 'photoURL': avatarUrl,
       if (avatarUrl != null) 'avatarUpdatedAt': FieldValue.serverTimestamp(),
       if (user.isDriver) 'car': (car ?? '').trim(),
+      'profileCompletenessPercent': completeness,
+      'profileStatus': nextProfileStatus,
       'updatedAt': FieldValue.serverTimestamp(),
     };
     final roleData = {
@@ -153,6 +167,18 @@ class UserRepository {
     }
 
     return avatarUrl;
+  }
+
+  Future<void> updateOnboarding({
+    required String uid,
+    required bool completed,
+    required int step,
+  }) {
+    return _firestore.collection('users').doc(uid).set({
+      'onboardingCompleted': completed,
+      'onboardingStep': step.clamp(0, 4),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
   Future<void> rateUser({

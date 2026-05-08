@@ -19,6 +19,7 @@ enum SiteSection {
   activity,
   admin,
   carriers,
+  more,
   sync,
 }
 
@@ -46,6 +47,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
   String? _status;
   CargoFilters _filters = CargoFilters.empty;
   UserModel? _selectedChatUser;
+  bool _onboardingPromptShown = false;
 
   late final Stream<List<CargoModel>> _cargosStream;
   late final Stream<List<UserModel>> _usersStream;
@@ -68,7 +70,64 @@ class _SiteDashboardState extends State<SiteDashboard> {
     _transportsStream = TransportRepository.instance.watchAvailableTransport();
   }
 
-  List<SiteSection> get _visibleSections => _workspace.sections;
+  void _scheduleOnboardingPrompt() {
+    if (_onboardingPromptShown || widget.user.onboardingCompleted) return;
+    _onboardingPromptShown = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final completed = await showDialog<bool>(
+        context: context,
+        barrierDismissible: true,
+        builder: (context) => _OnboardingDialog(user: widget.user),
+      );
+      if (!mounted) return;
+      try {
+        await UserRepository.instance.updateOnboarding(
+          uid: widget.user.uid,
+          completed: completed == true,
+          step: completed == true
+              ? 4
+              : widget.user.onboardingStep.clamp(1, 3).toInt(),
+        );
+      } catch (error) {
+        debugPrint('Failed to update onboarding: $error');
+      }
+    });
+  }
+
+  static const Set<SiteSection> _futureServiceSections = {
+    SiteSection.insurance,
+    SiteSection.support,
+  };
+
+  bool get _canSeeFutureServices =>
+      widget.user.isAdmin || widget.user.roles.contains('tester');
+
+  List<SiteSection> get _moreSections {
+    if (_canSeeFutureServices) return const <SiteSection>[];
+    final sections = _workspace.sections.where((section) {
+      if (section == SiteSection.sync) return false;
+      if (section == SiteSection.legal && widget.user.isLawyer) return false;
+      return _futureServiceSections.contains(section) ||
+          (section == SiteSection.legal && !_canSeeFutureServices);
+    }).toList();
+    return sections;
+  }
+
+  List<SiteSection> get _visibleSections {
+    final direct = _workspace.sections.where((section) {
+      if (section == SiteSection.sync) return false;
+      if (_canSeeFutureServices) return true;
+      if (section == SiteSection.legal && widget.user.isLawyer) return true;
+      if (_futureServiceSections.contains(section)) return false;
+      if (section == SiteSection.legal) return false;
+      return true;
+    }).toList();
+    if (_moreSections.isNotEmpty && !direct.contains(SiteSection.more)) {
+      direct.add(SiteSection.more);
+    }
+    return direct;
+  }
 
   void _selectSectionByIndex(int index) {
     final sections = _visibleSections;
@@ -110,6 +169,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
                       builder: (context, transportSnapshot) {
                         final transports =
                             transportSnapshot.data ?? const <TransportModel>[];
+                        _scheduleOnboardingPrompt();
 
                         return AppResponsiveScaffold(
                           appBar: isWide
@@ -202,6 +262,13 @@ class _SiteDashboardState extends State<SiteDashboard> {
   ) {
     final colors = Theme.of(context).colorScheme;
     final now = DateFormat('dd.MM.yyyy HH:mm').format(DateTime.now());
+    final syncText = cargoSnapshot.hasError
+        ? 'Ошибка синхронизации'
+        : cargoSnapshot.connectionState == ConnectionState.active
+            ? 'Синхронизировано: $now'
+            : cargoSnapshot.connectionState == ConnectionState.none
+                ? 'Offline'
+                : 'Последнее обновление: $now';
 
     return Container(
       height: 76,
@@ -232,9 +299,7 @@ class _SiteDashboardState extends State<SiteDashboard> {
                   _WorkspaceMiniBadge(workspace: _workspace),
                   const SizedBox(width: 10),
                   Text(
-                    cargoSnapshot.connectionState == ConnectionState.active
-                        ? 'Синхронизировано: $now'
-                        : 'Подключение...',
+                    syncText,
                     style: TextStyle(
                       color: colors.onSurfaceVariant,
                       fontWeight: FontWeight.w700,
@@ -369,10 +434,17 @@ class _SiteDashboardState extends State<SiteDashboard> {
         return OverviewSection(
           workspace: _workspace,
           cargos: _personalCargos(cargos),
+          allCargos: cargos,
           carriers: carriers,
+          users: users,
+          applications: applications,
+          transports: transports,
           user: widget.user,
           onCreateCargo: widget.user.canCreateCargo
               ? () => _showCargoDialog(context)
+              : null,
+          onAddTransport: widget.user.canApplyToCargo
+              ? () => _showTransportDialog(context)
               : null,
           onOpenCargo: () => setState(() => _section = SiteSection.myCargos),
           onOpenRecentCargo: (cargo) {
@@ -384,7 +456,6 @@ class _SiteDashboardState extends State<SiteDashboard> {
             });
           },
           onOpenSection: (section) {
-            if (!_visibleSections.contains(section)) return;
             setState(() => _section = section);
           },
           onOpenSettings: () => _openProfileSettings(widget.user),
@@ -535,7 +606,10 @@ class _SiteDashboardState extends State<SiteDashboard> {
           onApplicationDecision: _decideApplication,
         );
       case SiteSection.activity:
-        return ActivitySection(user: widget.user);
+        return ActivitySection(
+          user: widget.user,
+          onOpenActivity: (item) => _openActivityTarget(item, users, cargos),
+        );
       case SiteSection.findTransport:
         return FindTransportSection(
           user: widget.user,
@@ -583,6 +657,11 @@ class _SiteDashboardState extends State<SiteDashboard> {
           icon: Icons.support_agent_outlined,
           subjectLabel: 'Что не работает',
           messageLabel: 'Шаги, ошибка и ожидаемый результат',
+        );
+      case SiteSection.more:
+        return _MoreServicesSection(
+          sections: _moreSections,
+          onOpen: (section) => setState(() => _section = section),
         );
       case SiteSection.admin:
         return AdminSection(user: widget.user, users: users, cargos: cargos);
@@ -691,6 +770,63 @@ class _SiteDashboardState extends State<SiteDashboard> {
         return;
       default:
         setState(() => _section = SiteSection.activity);
+    }
+  }
+
+  Future<void> _openActivityTarget(
+    ActivityLogModel item,
+    List<UserModel> users,
+    List<CargoModel> cargos,
+  ) async {
+    final targetType = item.targetType ?? item.type;
+    final targetId = targetType == 'document'
+        ? (item.metadata['cargoId']?.toString() ??
+            item.targetId ??
+            item.cargoId)
+        : item.targetId ?? item.cargoId;
+    if (targetId == null || targetId.isEmpty) return;
+
+    switch (targetType) {
+      case 'chat':
+        final ids = targetId.split('_');
+        final peerId = ids.firstWhere(
+          (id) => id != widget.user.uid,
+          orElse: () => '',
+        );
+        final peer = users.cast<UserModel?>().firstWhere(
+              (user) => user?.uid == peerId,
+              orElse: () => null,
+            );
+        if (peer != null) await _openChatWithUser(peer);
+        return;
+      case 'user':
+        final profile = users.cast<UserModel?>().firstWhere(
+              (user) => user?.uid == targetId,
+              orElse: () => null,
+            );
+        if (profile != null) await _openProfile(profile);
+        return;
+      case 'application':
+        setState(() => _section = SiteSection.applications);
+        return;
+      case 'transport':
+        setState(() => _section = SiteSection.findTransport);
+        return;
+      case 'document':
+      case 'cargo':
+      default:
+        final cargo = cargos.cast<CargoModel?>().firstWhere(
+              (item) => item?.id == targetId,
+              orElse: () => null,
+            );
+        setState(() {
+          _section = _personalCargos(cargos).any((item) => item.id == targetId)
+              ? SiteSection.myCargos
+              : SiteSection.cargos;
+          _query = cargo?.title ?? item.targetTitle ?? '';
+          _status = null;
+          _filters = CargoFilters.empty;
+        });
     }
   }
 
@@ -980,6 +1116,189 @@ class _SiteDashboardState extends State<SiteDashboard> {
   }
 }
 
+class _MoreServicesSection extends StatelessWidget {
+  final List<SiteSection> sections;
+  final ValueChanged<SiteSection> onOpen;
+
+  const _MoreServicesSection({
+    required this.sections,
+    required this.onOpen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 96),
+      children: [
+        const AppPageHeader(
+          title: 'Ещё',
+          subtitle:
+              'Дополнительные сервисы вынесены отдельно от рабочего меню.',
+        ),
+        const SizedBox(height: 16),
+        AppResponsiveGrid(
+          desktopCrossAxisCount: 3,
+          tabletCrossAxisCount: 2,
+          mobileCrossAxisCount: 1,
+          children: sections
+              .map(
+                (section) => AppCard(
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        _sectionIcon(section, selected: true),
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        _sectionTitle(section),
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w900),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Сервис доступен отдельно, чтобы не перегружать основной рабочий стол.',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      OutlinedButton.icon(
+                        onPressed: () => onOpen(section),
+                        icon: const Icon(Icons.open_in_new_rounded),
+                        label: const Text('Открыть'),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+              .toList(),
+        ),
+      ],
+    );
+  }
+}
+
+class _OnboardingDialog extends StatelessWidget {
+  final UserModel user;
+
+  const _OnboardingDialog({required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final firstAction = user.isCarrier && !user.canCreateCargo
+        ? 'Добавьте транспорт или найдите первый груз.'
+        : user.isForwarder
+            ? 'Найдите груз и откройте заявки.'
+            : 'Создайте первый груз или найдите перевозчика.';
+
+    return AlertDialog(
+      title: const Text('Быстрый старт'),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _OnboardingStep(
+              index: 1,
+              title: 'Роль выбрана',
+              text: user.displayRole,
+              color: colors.primary,
+            ),
+            _OnboardingStep(
+              index: 2,
+              title: 'Заполните профиль',
+              text: 'Имя, контакты, регион, описание и фото.',
+              color: colors.primary,
+            ),
+            _OnboardingStep(
+              index: 3,
+              title: 'Первое действие',
+              text: firstAction,
+              color: colors.primary,
+            ),
+            _OnboardingStep(
+              index: 4,
+              title: 'Готово',
+              text: 'После этого рабочий стол станет полезнее.',
+              color: colors.primary,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Позже'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Перейти в кабинет'),
+        ),
+      ],
+    );
+  }
+}
+
+class _OnboardingStep extends StatelessWidget {
+  final int index;
+  final String title;
+  final String text;
+  final Color color;
+
+  const _OnboardingStep({
+    required this.index,
+    required this.title,
+    required this.text,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 14,
+            backgroundColor: color.withOpacity(0.12),
+            child: Text(
+              '$index',
+              style: TextStyle(color: color, fontWeight: FontWeight.w900),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: const TextStyle(fontWeight: FontWeight.w900)),
+                const SizedBox(height: 3),
+                Text(
+                  text,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 String _sectionTitle(SiteSection section) {
   switch (section) {
     case SiteSection.overview:
@@ -1018,6 +1337,8 @@ String _sectionTitle(SiteSection section) {
       return 'Техподдержка';
     case SiteSection.admin:
       return 'Админ';
+    case SiteSection.more:
+      return 'Ещё';
     case SiteSection.sync:
       return 'Синхронизация';
   }
@@ -1061,6 +1382,8 @@ String _sectionShortTitle(SiteSection section) {
       return 'Поддержка';
     case SiteSection.admin:
       return 'Админ';
+    case SiteSection.more:
+      return 'Ещё';
     case SiteSection.sync:
       return 'Sync';
   }
@@ -1116,6 +1439,8 @@ IconData _sectionIcon(SiteSection section, {required bool selected}) {
       return selected
           ? Icons.admin_panel_settings_rounded
           : Icons.admin_panel_settings_outlined;
+    case SiteSection.more:
+      return selected ? Icons.more_horiz_rounded : Icons.more_horiz_outlined;
     case SiteSection.sync:
       return selected ? Icons.sync_rounded : Icons.sync_outlined;
   }

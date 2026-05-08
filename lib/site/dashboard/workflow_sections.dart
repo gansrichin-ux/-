@@ -22,7 +22,8 @@ class ApplicationsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final visible = applications.where((a) {
       final isMyApplication = a.applicantId == user.uid;
-      final isMyCargo = cargos.any((c) => c.id == a.cargoId && c.ownerId == user.uid);
+      final isMyCargo =
+          cargos.any((c) => c.id == a.cargoId && c.ownerId == user.uid);
       return isMyApplication || isMyCargo;
     }).toList();
 
@@ -159,7 +160,9 @@ class _ApplicationCard extends StatelessWidget {
                 ],
               ),
             ],
-            if (user.canCreateCargo && application.isPending && onDecision != null)
+            if (user.canCreateCargo &&
+                application.isPending &&
+                onDecision != null)
               Padding(
                 padding: const EdgeInsets.only(top: 14),
                 child: Row(
@@ -594,13 +597,18 @@ class _NotificationMiniTile extends StatelessWidget {
 
 class ActivitySection extends StatelessWidget {
   final UserModel user;
+  final ValueChanged<ActivityLogModel>? onOpenActivity;
 
-  const ActivitySection({super.key, required this.user});
+  const ActivitySection({
+    super.key,
+    required this.user,
+    this.onOpenActivity,
+  });
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<ActivityLogModel>>(
-      stream: SiteWorkflowRepository.instance.watchActivity(user.uid),
+      stream: SiteWorkflowRepository.instance.watchAuditActivity(user),
       builder: (context, snapshot) {
         final items = snapshot.data ?? const <ActivityLogModel>[];
         return ListView(
@@ -627,7 +635,12 @@ class ActivitySection extends StatelessWidget {
               ...items.map(
                 (item) => Padding(
                   padding: const EdgeInsets.only(bottom: 10),
-                  child: _ActivityTile(item: item),
+                  child: _ActivityTile(
+                    item: item,
+                    onTap: item.hasTarget && onOpenActivity != null
+                        ? () => onOpenActivity!(item)
+                        : null,
+                  ),
                 ),
               ),
           ],
@@ -639,8 +652,9 @@ class ActivitySection extends StatelessWidget {
 
 class _ActivityTile extends StatelessWidget {
   final ActivityLogModel item;
+  final VoidCallback? onTap;
 
-  const _ActivityTile({required this.item});
+  const _ActivityTile({required this.item, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -648,12 +662,16 @@ class _ActivityTile extends StatelessWidget {
     final color = _workflowTypeColor(item.type, colors);
     return Card(
       child: ListTile(
+        onTap: onTap,
         leading: Icon(_workflowTypeIcon(item.type), color: color),
         title: Text(item.title,
             style: const TextStyle(fontWeight: FontWeight.w900)),
         subtitle: Text(
           '${item.body}\n${item.actorName} · ${DateFormat('dd.MM.yyyy HH:mm').format(item.createdAt)}',
         ),
+        trailing: onTap == null
+            ? null
+            : Icon(Icons.open_in_new_rounded, color: colors.primary),
         isThreeLine: true,
       ),
     );
@@ -709,7 +727,7 @@ class AdminSection extends StatelessWidget {
                       label: 'Пользователей',
                       value: users.length.toString(),
                       icon: Icons.people_alt_outlined),
-                   _AdminMetric(
+                  _AdminMetric(
                       label: 'Перевозчиков',
                       value: carriers.toString(),
                       icon: Icons.badge_outlined),
@@ -758,6 +776,40 @@ class AdminSection extends StatelessWidget {
                           )
                           .toList(),
                     ),
+            ),
+            const SizedBox(height: 18),
+            _ProfilePanel(
+              icon: Icons.manage_history_rounded,
+              title: 'Audit log',
+              child: StreamBuilder<List<ActivityLogModel>>(
+                stream:
+                    SiteWorkflowRepository.instance.watchAuditActivity(user),
+                builder: (context, auditSnapshot) {
+                  final items =
+                      auditSnapshot.data ?? const <ActivityLogModel>[];
+                  if (auditSnapshot.connectionState ==
+                          ConnectionState.waiting &&
+                      !auditSnapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (items.isEmpty) {
+                    return const _ProfileEmpty(
+                      icon: Icons.history_toggle_off_rounded,
+                      title: 'Записей пока нет',
+                      message:
+                          'Системные действия появятся здесь после изменений.',
+                    );
+                  }
+                  return Column(
+                    children: items.take(20).map((item) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _ActivityTile(item: item),
+                      );
+                    }).toList(),
+                  );
+                },
+              ),
             ),
           ],
         );

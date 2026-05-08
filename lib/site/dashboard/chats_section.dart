@@ -449,6 +449,7 @@ class _DirectChatInputState extends State<_DirectChatInput> {
                   contentPadding:
                       EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
+                onEditingComplete: _sendText,
                 onSubmitted: (_) => _sendText(),
               ),
             ),

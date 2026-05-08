@@ -14,6 +14,11 @@ class UserModel {
   final String? fcmToken;
   final String? avatarUrl;
   final String? aboutMe;
+  final String? profileStatus;
+  final int? profileCompletenessPercent;
+  final String? profileReviewComment;
+  final bool onboardingCompleted;
+  final int onboardingStep;
   final int ratingCount;
   final int ratingSum;
   final bool emailCodeVerified;
@@ -31,6 +36,11 @@ class UserModel {
     this.fcmToken,
     this.avatarUrl,
     this.aboutMe,
+    this.profileStatus,
+    this.profileCompletenessPercent,
+    this.profileReviewComment,
+    this.onboardingCompleted = false,
+    this.onboardingStep = 0,
     this.ratingCount = 0,
     this.ratingSum = 0,
     this.emailCodeVerified = false,
@@ -77,6 +87,11 @@ class UserModel {
     String? fcmToken,
     String? avatarUrl,
     String? aboutMe,
+    String? profileStatus,
+    int? profileCompletenessPercent,
+    String? profileReviewComment,
+    bool? onboardingCompleted,
+    int? onboardingStep,
     int? ratingCount,
     int? ratingSum,
     bool? emailCodeVerified,
@@ -94,6 +109,12 @@ class UserModel {
       fcmToken: fcmToken ?? this.fcmToken,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       aboutMe: aboutMe ?? this.aboutMe,
+      profileStatus: profileStatus ?? this.profileStatus,
+      profileCompletenessPercent:
+          profileCompletenessPercent ?? this.profileCompletenessPercent,
+      profileReviewComment: profileReviewComment ?? this.profileReviewComment,
+      onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
+      onboardingStep: onboardingStep ?? this.onboardingStep,
       ratingCount: ratingCount ?? this.ratingCount,
       ratingSum: ratingSum ?? this.ratingSum,
       emailCodeVerified: emailCodeVerified ?? this.emailCodeVerified,
@@ -130,6 +151,12 @@ class UserModel {
       avatarUrl: (data['avatarUrl'] ?? data['photoURL'] ?? data['photoUrl'])
           as String?,
       aboutMe: data['aboutMe'] as String?,
+      profileStatus: data['profileStatus'] as String?,
+      profileCompletenessPercent:
+          (data['profileCompletenessPercent'] as num?)?.toInt(),
+      profileReviewComment: data['profileReviewComment'] as String?,
+      onboardingCompleted: data['onboardingCompleted'] as bool? ?? false,
+      onboardingStep: (data['onboardingStep'] as num?)?.toInt() ?? 0,
       ratingCount: (data['ratingCount'] as num?)?.toInt() ?? 0,
       ratingSum: (data['ratingSum'] as num?)?.toInt() ?? 0,
       emailCodeVerified: data['emailCodeVerified'] as bool? ?? false,
@@ -159,6 +186,12 @@ class UserModel {
       avatarUrl:
           (map['avatarUrl'] ?? map['photoURL'] ?? map['photoUrl']) as String?,
       aboutMe: map['aboutMe'] as String?,
+      profileStatus: map['profileStatus'] as String?,
+      profileCompletenessPercent:
+          (map['profileCompletenessPercent'] as num?)?.toInt(),
+      profileReviewComment: map['profileReviewComment'] as String?,
+      onboardingCompleted: map['onboardingCompleted'] as bool? ?? false,
+      onboardingStep: (map['onboardingStep'] as num?)?.toInt() ?? 0,
       ratingCount: (map['ratingCount'] as num?)?.toInt() ?? 0,
       ratingSum: (map['ratingSum'] as num?)?.toInt() ?? 0,
     );
@@ -180,6 +213,13 @@ class UserModel {
       if (avatarUrl != null) 'avatarUrl': avatarUrl,
       if (avatarUrl != null) 'photoURL': avatarUrl,
       if (aboutMe != null) 'aboutMe': aboutMe,
+      if (profileStatus != null) 'profileStatus': profileStatus,
+      if (profileCompletenessPercent != null)
+        'profileCompletenessPercent': profileCompletenessPercent,
+      if (profileReviewComment != null)
+        'profileReviewComment': profileReviewComment,
+      'onboardingCompleted': onboardingCompleted,
+      'onboardingStep': onboardingStep,
       'ratingCount': ratingCount,
       'ratingSum': ratingSum,
       'createdAt': FieldValue.serverTimestamp(),
@@ -275,4 +315,50 @@ class UserModel {
   }
 
   double get rating => ratingCount == 0 ? 0 : ratingSum / ratingCount;
+
+  int get calculatedProfileCompletenessPercent {
+    final checks = <bool>[
+      name?.trim().isNotEmpty == true,
+      email.trim().isNotEmpty,
+      roles.isNotEmpty || role.trim().isNotEmpty,
+      username?.trim().isNotEmpty == true,
+      aboutMe?.trim().isNotEmpty == true,
+      avatarUrl?.trim().isNotEmpty == true,
+      if (isCarrier) car?.trim().isNotEmpty == true,
+      if (!isCarrier) companyId?.trim().isNotEmpty == true,
+    ];
+    if (checks.isEmpty) return 0;
+    final filled = checks.where((value) => value).length;
+    return ((filled / checks.length) * 100).round().clamp(0, 100).toInt();
+  }
+
+  int get effectiveProfileCompletenessPercent =>
+      (profileCompletenessPercent ?? calculatedProfileCompletenessPercent)
+          .clamp(0, 100)
+          .toInt();
+
+  String get effectiveProfileStatus {
+    final stored = profileStatus?.trim();
+    if (stored != null && stored.isNotEmpty) return stored;
+    return effectiveProfileCompletenessPercent >= 90
+        ? 'verified'
+        : 'profile_incomplete';
+  }
+
+  List<String> get profileMissingItems {
+    final missing = <String>[];
+    if (name?.trim().isNotEmpty != true) missing.add('имя');
+    if (email.trim().isEmpty) missing.add('email');
+    if (roles.isEmpty && role.trim().isEmpty) missing.add('роль');
+    if (username?.trim().isNotEmpty != true) missing.add('логин');
+    if (aboutMe?.trim().isNotEmpty != true) missing.add('описание');
+    if (avatarUrl?.trim().isNotEmpty != true) missing.add('фото');
+    if (isCarrier && car?.trim().isNotEmpty != true) {
+      missing.add('транспорт');
+    }
+    if (!isCarrier && companyId?.trim().isNotEmpty != true) {
+      missing.add('компания');
+    }
+    return missing;
+  }
 }
