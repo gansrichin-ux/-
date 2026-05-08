@@ -43,9 +43,15 @@ class OverviewSection extends StatelessWidget {
     final stats = CargoStatsView(cargos);
     final recent = cargos.take(5).toList();
     final isWide = MediaQuery.sizeOf(context).width >= 980;
+    final isMobile = Responsive.isMobile(context);
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 96),
+      padding: EdgeInsets.fromLTRB(
+        isMobile ? 16 : 24,
+        isMobile ? 12 : 24,
+        isMobile ? 16 : 24,
+        96,
+      ),
       children: [
         AppPageHeader(
           title: workspace.title,

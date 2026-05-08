@@ -24,9 +24,12 @@ class AppResponsiveScaffold extends StatelessWidget {
     final isDesktop = Responsive.isDesktop(context);
 
     return Scaffold(
-      backgroundColor: backgroundColor ?? Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor:
+          backgroundColor ?? Theme.of(context).scaffoldBackgroundColor,
       appBar: !isDesktop ? appBar : null,
-      bottomNavigationBar: !isDesktop ? bottomNavigation : null,
+      bottomNavigationBar: !isDesktop && bottomNavigation != null
+          ? SafeArea(top: false, child: bottomNavigation!)
+          : null,
       floatingActionButton: floatingActionButton,
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -80,7 +83,8 @@ class AppResponsiveGrid extends StatelessWidget {
         crossAxisCount: crossAxisCount,
         crossAxisSpacing: crossAxisSpacing,
         mainAxisSpacing: mainAxisSpacing,
-        mainAxisExtent: 140, // Let caller define this if needed, for stat cards it's usually fixed
+        mainAxisExtent:
+            140, // Let caller define this if needed, for stat cards it's usually fixed
       ),
       itemCount: children.length,
       itemBuilder: (context, index) => children[index],

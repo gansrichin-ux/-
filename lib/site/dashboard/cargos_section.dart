@@ -1600,13 +1600,13 @@ class _CargoDocumentTile extends StatelessWidget {
           const SizedBox(width: 8),
           IconButton(
             tooltip: 'Открыть',
-            onPressed: () => _openMediaUrl(document.fileUrl),
+            onPressed: () => _openMediaUrl(context, document.fileUrl),
             icon: const Icon(Icons.open_in_new_rounded),
           ),
           IconButton(
             tooltip: 'Скачать',
             onPressed: () =>
-                _downloadMediaUrl(document.fileUrl, document.fileName),
+                _downloadMediaUrl(context, document.fileUrl, document.fileName),
             icon: const Icon(Icons.download_rounded),
           ),
         ],
@@ -1636,7 +1636,7 @@ class _CargoPhotosDialog extends StatelessWidget {
           itemCount: cargo.photos.length,
           itemBuilder: (context, index) {
             return InkWell(
-              onTap: () => _openMediaUrl(cargo.photos[index]),
+              onTap: () => _openMediaUrl(context, cargo.photos[index]),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: Image.network(

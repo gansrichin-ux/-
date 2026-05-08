@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_breakpoints.dart';
 import '../theme/app_text_styles.dart';
 
 class AppPageHeader extends StatelessWidget {
@@ -15,36 +16,51 @@ class AppPageHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = Responsive.isMobile(context);
+    final titleStyle = AppTextStyles.display.copyWith(
+      fontSize: isMobile ? 30 : 28,
+      height: 1.08,
+    );
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 24.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Column(
+      padding: EdgeInsets.symmetric(vertical: isMobile ? 16 : 24),
+      child: isMobile
+          ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  title,
-                  style: AppTextStyles.display.copyWith(fontSize: 28),
-                ),
+                Text(title, style: titleStyle),
                 if (subtitle != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle!,
-                    style: AppTextStyles.bodyMedium,
+                  const SizedBox(height: 8),
+                  Text(subtitle!, style: AppTextStyles.bodyMedium),
+                ],
+                if (trailing != null) ...[
+                  const SizedBox(height: 14),
+                  Align(alignment: Alignment.centerLeft, child: trailing!),
+                ],
+              ],
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(title, style: titleStyle),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 4),
+                        Text(subtitle!, style: AppTextStyles.bodyMedium),
+                      ],
+                    ],
                   ),
+                ),
+                if (trailing != null) ...[
+                  const SizedBox(width: 16),
+                  trailing!,
                 ],
               ],
             ),
-          ),
-          if (trailing != null) ...[
-            const SizedBox(width: 16),
-            trailing!,
-          ],
-        ],
-      ),
     );
   }
 }

@@ -203,7 +203,8 @@ class _SiteMessageBubble extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 5),
-            if (message.mediaUrl?.isNotEmpty == true) ...[
+            if (message.mediaUrl?.isNotEmpty == true ||
+                message.mediaName?.isNotEmpty == true) ...[
               _MessageMedia(message: message),
               if (message.text.isNotEmpty) const SizedBox(height: 8),
             ],
@@ -241,10 +242,18 @@ class _MessageMedia extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final mediaUrl = message.mediaUrl!;
+    final mediaUrl = message.mediaUrl ?? '';
     final mediaType = message.mediaType ?? '';
     final name = message.mediaName ?? 'Медиа';
     final isImage = mediaType.startsWith('image/');
+
+    if (mediaUrl.isEmpty) {
+      return _MediaFallback(
+        message: message,
+        name: name,
+        color: colors.error,
+      );
+    }
 
     if (isImage) {
       return Column(
@@ -295,11 +304,23 @@ class _MessageMedia extends StatelessWidget {
   }
 }
 
-void _openMediaUrl(String url) {
+void _openMediaUrl(BuildContext context, String? url) {
+  if (url == null || url.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Файл недоступен или был удалён')),
+    );
+    return;
+  }
   web.window.open(url, '_blank');
 }
 
-void _downloadMediaUrl(String url, String name) {
+void _downloadMediaUrl(BuildContext context, String? url, String name) {
+  if (url == null || url.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Файл недоступен или был удалён')),
+    );
+    return;
+  }
   final anchor = web.HTMLAnchorElement()
     ..href = url
     ..download = name
@@ -312,7 +333,12 @@ void _downloadMediaUrl(String url, String name) {
 
 void _showMediaPreview(BuildContext context, MessageModel message) {
   final url = message.mediaUrl;
-  if (url == null || url.isEmpty) return;
+  if (url == null || url.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Файл недоступен или был удалён')),
+    );
+    return;
+  }
   final name = message.mediaName ?? 'media';
   final mediaType = message.mediaType ?? '';
 
@@ -340,12 +366,12 @@ void _showMediaPreview(BuildContext context, MessageModel message) {
       ),
       actions: [
         TextButton.icon(
-          onPressed: () => _openMediaUrl(url),
+          onPressed: () => _openMediaUrl(context, url),
           icon: const Icon(Icons.open_in_new_rounded),
           label: const Text('Открыть'),
         ),
         FilledButton.icon(
-          onPressed: () => _downloadMediaUrl(url, name),
+          onPressed: () => _downloadMediaUrl(context, url, name),
           icon: const Icon(Icons.download_rounded),
           label: const Text('Скачать'),
         ),
@@ -356,7 +382,7 @@ void _showMediaPreview(BuildContext context, MessageModel message) {
 
 class _MediaActions extends StatelessWidget {
   final String name;
-  final String url;
+  final String? url;
 
   const _MediaActions({required this.name, required this.url});
 
@@ -367,12 +393,12 @@ class _MediaActions extends StatelessWidget {
       runSpacing: 8,
       children: [
         OutlinedButton.icon(
-          onPressed: () => _openMediaUrl(url),
+          onPressed: () => _openMediaUrl(context, url),
           icon: const Icon(Icons.open_in_new_rounded, size: 18),
           label: const Text('Открыть'),
         ),
         OutlinedButton.icon(
-          onPressed: () => _downloadMediaUrl(url, name),
+          onPressed: () => _downloadMediaUrl(context, url, name),
           icon: const Icon(Icons.download_rounded, size: 18),
           label: const Text('Скачать'),
         ),
@@ -410,13 +436,13 @@ String _formatMediaSize(int bytes) {
 class _MediaFallback extends StatelessWidget {
   final MessageModel? message;
   final String name;
-  final String url;
+  final String? url;
   final Color color;
 
   const _MediaFallback({
     this.message,
     required this.name,
-    required this.url,
+    this.url,
     required this.color,
   });
 
@@ -461,12 +487,12 @@ class _MediaFallback extends StatelessWidget {
           const SizedBox(width: 8),
           IconButton(
             tooltip: 'Открыть',
-            onPressed: () => _openMediaUrl(url),
+            onPressed: () => _openMediaUrl(context, url),
             icon: const Icon(Icons.open_in_new_rounded),
           ),
           IconButton(
             tooltip: 'Скачать',
-            onPressed: () => _downloadMediaUrl(url, name),
+            onPressed: () => _downloadMediaUrl(context, url, name),
             icon: const Icon(Icons.download_rounded),
           ),
         ],

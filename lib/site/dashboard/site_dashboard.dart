@@ -129,16 +129,55 @@ class _SiteDashboardState extends State<SiteDashboard> {
     return direct;
   }
 
+  static const List<SiteSection> _mobilePreferredSections = [
+    SiteSection.overview,
+    SiteSection.cargos,
+    SiteSection.findTransport,
+    SiteSection.myCargos,
+  ];
+
+  List<SiteSection> get _mobileMoreSections {
+    final direct = _visibleSections.where((section) {
+      return section != SiteSection.more &&
+          !_mobilePreferredSections.contains(section);
+    });
+    return _uniqueSections([...direct, ..._moreSections]);
+  }
+
+  List<SiteSection> get _mobileBottomSections {
+    final visible = _visibleSections;
+    final sections = _mobilePreferredSections
+        .where((section) => visible.contains(section))
+        .toList();
+    if (_mobileMoreSections.isNotEmpty) {
+      sections.add(SiteSection.more);
+    }
+    return sections;
+  }
+
+  List<SiteSection> _uniqueSections(Iterable<SiteSection> sections) {
+    final seen = <SiteSection>{};
+    return [
+      for (final section in sections)
+        if (seen.add(section)) section,
+    ];
+  }
+
   void _selectSectionByIndex(int index) {
     final sections = _visibleSections;
     if (index < 0 || index >= sections.length) return;
     setState(() => _section = sections[index]);
   }
 
+  void _selectMobileSectionByIndex(int index) {
+    final sections = _mobileBottomSections;
+    if (index < 0 || index >= sections.length) return;
+    setState(() => _section = sections[index]);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    final isWide = size.width >= 1040;
+    final isWide = Responsive.isDesktop(context);
 
     return StreamBuilder<List<CargoModel>>(
       stream: _cargosStream,
@@ -404,20 +443,39 @@ class _SiteDashboardState extends State<SiteDashboard> {
   }
 
   Widget _buildBottomBar() {
-    final sections = _visibleSections;
-    final selectedIndex = sections.indexOf(_section);
-    return NavigationBar(
-      selectedIndex: selectedIndex < 0 ? 0 : selectedIndex,
-      onDestinationSelected: _selectSectionByIndex,
-      destinations: sections
-          .map(
-            (section) => NavigationDestination(
-              icon: Icon(_sectionIcon(section, selected: false)),
-              selectedIcon: Icon(_sectionIcon(section, selected: true)),
-              label: _sectionShortTitle(section),
-            ),
-          )
-          .toList(),
+    final sections = _mobileBottomSections;
+    var selectedIndex = sections.indexOf(_section);
+    if (selectedIndex < 0 && sections.contains(SiteSection.more)) {
+      selectedIndex = sections.indexOf(SiteSection.more);
+    }
+    return NavigationBarTheme(
+      data: NavigationBarThemeData(
+        height: 68,
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (states) => TextStyle(
+            fontSize: 11,
+            height: 1.05,
+            fontWeight: states.contains(WidgetState.selected)
+                ? FontWeight.w800
+                : FontWeight.w600,
+          ),
+        ),
+      ),
+      child: NavigationBar(
+        selectedIndex: selectedIndex < 0 ? 0 : selectedIndex,
+        onDestinationSelected: _selectMobileSectionByIndex,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        destinations: sections
+            .map(
+              (section) => NavigationDestination(
+                icon: Icon(_sectionIcon(section, selected: false), size: 23),
+                selectedIcon:
+                    Icon(_sectionIcon(section, selected: true), size: 23),
+                label: _mobileSectionTitle(section),
+              ),
+            )
+            .toList(),
+      ),
     );
   }
 
@@ -660,8 +718,13 @@ class _SiteDashboardState extends State<SiteDashboard> {
         );
       case SiteSection.more:
         return _MoreServicesSection(
-          sections: _moreSections,
+          sections: Responsive.isDesktop(context)
+              ? _moreSections
+              : _mobileMoreSections,
           onOpen: (section) => setState(() => _section = section),
+          onOpenProfile: () => _openProfile(widget.user),
+          onOpenSettings: () => _openProfileSettings(widget.user),
+          onSignOut: AuthRepository.instance.signOut,
         );
       case SiteSection.admin:
         return AdminSection(user: widget.user, users: users, cargos: cargos);
@@ -808,6 +871,19 @@ class _SiteDashboardState extends State<SiteDashboard> {
         return;
       case 'application':
         setState(() => _section = SiteSection.applications);
+        return;
+      case 'support_ticket':
+        final serviceType = item.metadata['serviceType']?.toString();
+        setState(() {
+          _section = serviceType == 'legal'
+              ? SiteSection.legal
+              : serviceType == 'insurance'
+                  ? SiteSection.insurance
+                  : SiteSection.support;
+        });
+        return;
+      case 'tender':
+        setState(() => _section = SiteSection.tender);
         return;
       case 'transport':
         setState(() => _section = SiteSection.findTransport);
@@ -1119,67 +1195,110 @@ class _SiteDashboardState extends State<SiteDashboard> {
 class _MoreServicesSection extends StatelessWidget {
   final List<SiteSection> sections;
   final ValueChanged<SiteSection> onOpen;
+  final VoidCallback onOpenProfile;
+  final VoidCallback onOpenSettings;
+  final VoidCallback onSignOut;
 
   const _MoreServicesSection({
     required this.sections,
     required this.onOpen,
+    required this.onOpenProfile,
+    required this.onOpenSettings,
+    required this.onSignOut,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = Responsive.isMobile(context);
+    final horizontalPadding = isMobile ? 16.0 : 24.0;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 96),
+      padding: EdgeInsets.fromLTRB(
+        horizontalPadding,
+        isMobile ? 16 : 24,
+        horizontalPadding,
+        96,
+      ),
       children: [
         const AppPageHeader(
           title: 'Ещё',
-          subtitle:
-              'Дополнительные сервисы вынесены отдельно от рабочего меню.',
+          subtitle: 'Дополнительные разделы и действия аккаунта.',
         ),
-        const SizedBox(height: 16),
-        AppResponsiveGrid(
-          desktopCrossAxisCount: 3,
-          tabletCrossAxisCount: 2,
-          mobileCrossAxisCount: 1,
-          children: sections
-              .map(
-                (section) => AppCard(
-                  padding: const EdgeInsets.all(18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        _sectionIcon(section, selected: true),
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      const SizedBox(height: 14),
-                      Text(
-                        _sectionTitle(section),
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w900),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Сервис доступен отдельно, чтобы не перегружать основной рабочий стол.',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      OutlinedButton.icon(
-                        onPressed: () => onOpen(section),
-                        icon: const Icon(Icons.open_in_new_rounded),
-                        label: const Text('Открыть'),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-              .toList(),
+        const SizedBox(height: 8),
+        ...sections.map(
+          (section) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _MoreMenuTile(
+              icon: _sectionIcon(section, selected: true),
+              title: _sectionTitle(section),
+              subtitle: _moreSectionDescription(section),
+              onTap: () => onOpen(section),
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        _MoreMenuTile(
+          icon: Icons.account_circle_rounded,
+          title: 'Профиль',
+          subtitle: 'Открыть публичную страницу аккаунта.',
+          onTap: onOpenProfile,
+        ),
+        const SizedBox(height: 10),
+        _MoreMenuTile(
+          icon: Icons.tune_rounded,
+          title: 'Настройки',
+          subtitle: 'Редактировать профиль и данные аккаунта.',
+          onTap: onOpenSettings,
+        ),
+        const SizedBox(height: 10),
+        _MoreMenuTile(
+          icon: Icons.logout_rounded,
+          title: 'Выход',
+          subtitle: 'Завершить текущую сессию.',
+          onTap: onSignOut,
+          isDanger: true,
         ),
       ],
+    );
+  }
+}
+
+class _MoreMenuTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  final bool isDanger;
+
+  const _MoreMenuTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.isDanger = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final color = isDanger ? colors.error : colors.primary;
+    return AppCard(
+      padding: EdgeInsets.zero,
+      child: ListTile(
+        leading: Icon(icon, color: color),
+        title: Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontWeight: FontWeight.w900),
+        ),
+        subtitle: Text(
+          subtitle,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: const Icon(Icons.chevron_right_rounded),
+        onTap: onTap,
+      ),
     );
   }
 }
@@ -1386,6 +1505,58 @@ String _sectionShortTitle(SiteSection section) {
       return 'Ещё';
     case SiteSection.sync:
       return 'Sync';
+  }
+}
+
+String _mobileSectionTitle(SiteSection section) {
+  switch (section) {
+    case SiteSection.overview:
+      return 'Кабинет';
+    case SiteSection.cargos:
+      return 'Грузы';
+    case SiteSection.findTransport:
+      return 'Транспорт';
+    case SiteSection.myCargos:
+      return 'Мои';
+    case SiteSection.more:
+      return 'Ещё';
+    default:
+      return _sectionShortTitle(section);
+  }
+}
+
+String _moreSectionDescription(SiteSection section) {
+  switch (section) {
+    case SiteSection.company:
+      return 'Профиль организации, контакты и показатели.';
+    case SiteSection.myTransport:
+      return 'Ваш транспорт и доступность для рейсов.';
+    case SiteSection.favorites:
+      return 'Сохранённые грузы и транспорт.';
+    case SiteSection.chats:
+      return 'Диалоги с пользователями.';
+    case SiteSection.tender:
+      return 'Тендеры и заявки на перевозку.';
+    case SiteSection.insurance:
+      return 'Будущий сервис страхования грузов.';
+    case SiteSection.legal:
+      return 'Юридические обращения и консультации.';
+    case SiteSection.carriers:
+      return 'Перевозчики и назначение на грузы.';
+    case SiteSection.users:
+      return 'Пользователи системы.';
+    case SiteSection.support:
+      return 'Обращения в техническую поддержку.';
+    case SiteSection.activity:
+      return 'История действий и изменений.';
+    case SiteSection.applications:
+      return 'Отклики и заявки по грузам.';
+    case SiteSection.notifications:
+      return 'Уведомления по событиям.';
+    case SiteSection.admin:
+      return 'Административные панели.';
+    default:
+      return 'Открыть раздел.';
   }
 }
 
